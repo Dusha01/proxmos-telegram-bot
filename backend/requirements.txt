@@ -1,0 +1,6 @@
+fastapi>=0.115
+httpx>=0.28
+motor>=3.6
+pydantic>=2.10
+pydantic-settings>=2.7
+uvicorn[standard]>=0.34

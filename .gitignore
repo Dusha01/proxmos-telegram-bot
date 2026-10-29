@@ -16,4 +16,5 @@ Thumbs.db
 .env.prod
 .env.dev
 
-#
+# cache
+.pytest_cache

@@ -1,0 +1,33 @@
+name: proxmos-bot-dev
+
+services:
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo_data:/data/db
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Docker/Dockerfile.prod
+    env_file: .env.dev
+    depends_on:
+      - mongo
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./backend/src:/app/src:ro
+
+  bot:
+    build:
+      context: ./bot
+      dockerfile: Docker/Dockerfile.prod
+    env_file: .env.dev
+    depends_on:
+      - api
+    volumes:
+      - ./bot/core:/app/core:ro
+      - ./bot/src:/app/src:ro
+
+volumes:
+  mongo_data:
