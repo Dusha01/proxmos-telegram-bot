@@ -31,6 +31,7 @@ async def api_client():
         async with app.router.lifespan_context(app):
             mock_admins = AsyncMock()
             mock_admins.ensure_indexes = AsyncMock()
+            mock_admins.ensure_from_env = AsyncMock()
             mock_admins.find_active = AsyncMock(
                 return_value=AdminOut(
                     user_id=1,
@@ -54,16 +55,6 @@ def _bot_headers(user_id: int = 1, chat_id: int = 1) -> dict[str, str]:
         "X-Telegram-User-Id": str(user_id),
         "X-Telegram-Chat-Id": str(chat_id),
     }
-
-
-@pytest.mark.asyncio
-async def test_register_admin_without_token_returns_401(api_client) -> None:
-    client, _ = api_client
-    response = await client.post(
-        "/admins",
-        json={"user_id": 1, "chat_id": 1},
-    )
-    assert response.status_code == 401
 
 
 @pytest.mark.asyncio

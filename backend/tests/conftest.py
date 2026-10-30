@@ -7,7 +7,8 @@ import pytest
 def _test_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("APP_ENV", "dev")
     monkeypatch.setenv("BOT_API_TOKEN", "test-bot-token")
-    monkeypatch.setenv("REGISTRATION_TOKEN", "test-reg-token")
+    monkeypatch.setenv("ADMIN_USER_ID", "1")
+    monkeypatch.setenv("ADMIN_CHAT_ID", "1")
     monkeypatch.setenv("MONGO_URL", "mongodb://localhost:27017")
     monkeypatch.setenv("MONGO_DB", "proxmos_test")
     monkeypatch.setenv("PROXMOX_HOST", "https://pve.test:8006")

@@ -14,7 +14,7 @@ Telegram-бот и FastAPI-бэкенд для мониторинга и упр�
 
 ```bash
 cp .env.dev.example .env.dev
-# заполнить TELEGRAM_BOT_TOKEN, BOT_API_TOKEN, REGISTRATION_TOKEN, PROXMOX_*
+# заполнить TELEGRAM_BOT_TOKEN, BOT_API_TOKEN, ADMIN_USER_ID, ADMIN_CHAT_ID, PROXMOX_*
 ```
 
 2. Запуск:
@@ -23,18 +23,11 @@ cp .env.dev.example .env.dev
 docker compose -f docker-compose.dev.yml up --build
 ```
 
-3. Зарегистрировать администратора (с хоста, API на `127.0.0.1:8000`):
+3. Написать боту `/start` из чата, для которого в `.env` заданы `ADMIN_USER_ID` и `ADMIN_CHAT_ID`.
 
-```bash
-curl -s -X POST http://127.0.0.1:8000/admins \
-  -H "Content-Type: application/json" \
-  -H "X-Registration-Token: YOUR_REGISTRATION_TOKEN" \
-  -d '{"user_id": YOUR_TELEGRAM_ID, "chat_id": YOUR_TELEGRAM_ID, "name": "Speed"}'
-```
+В личке `ADMIN_CHAT_ID` обычно равен `ADMIN_USER_ID`. Для группы укажи отрицательный `chat_id` (узнать можно через `@userinfobot` или лог бота).
 
-В личке `chat_id` совпадает с `user_id`. Для группы нужна отдельная запись с отрицательным `chat_id`.
-
-4. Написать боту `/start`.
+При каждом старте API синхронизирует эту пару в Mongo (upsert).
 
 ## Prod
 
@@ -43,7 +36,7 @@ cp .env.prod.example .env.prod
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-Регистрация админа — из сети compose (`docker compose exec api ...`), порт API наружу не публикуется.
+Регистрация через API не нужна — админ задаётся в `.env.prod`.
 
 ## Тесты
 

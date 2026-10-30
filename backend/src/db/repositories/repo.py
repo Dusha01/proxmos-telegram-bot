@@ -19,6 +19,27 @@ class AdminRepository:
             name="user_chat_unique",
         )
 
+    async def ensure_from_env(
+        self,
+        user_id: int,
+        chat_id: int,
+        name: str | None = None,
+    ) -> None:
+        now = datetime.now(UTC)
+        await self._collection.update_one(
+            {"user_id": user_id, "chat_id": chat_id},
+            {
+                "$set": {
+                    "user_id": user_id,
+                    "chat_id": chat_id,
+                    "active": True,
+                    "name": name,
+                },
+                "$setOnInsert": {"created_at": now},
+            },
+            upsert=True,
+        )
+
     async def create(self, payload: AdminCreate) -> AdminOut:
         doc = AdminDocument(
             user_id=payload.user_id,

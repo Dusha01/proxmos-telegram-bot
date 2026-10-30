@@ -9,8 +9,8 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from core.settings import Settings, get_settings
-from db.models.dto import AdminCreate, AdminOut
-from db.repositories.repo import AdminAlreadyExistsError, AdminRepository, create_motor_client
+from db.models.dto import AdminOut
+from db.repositories.repo import AdminRepository, create_motor_client
 from proxmox.client import ProxmoxClient, ProxmoxError
 from proxmox.models import Guest, GuestKind, GuestListResponse, NodeStatus, PowerAction, SummaryResponse
 from services.guard import ActionGuard, ProtectedGuestError
@@ -44,6 +44,11 @@ async def lifespan(app: FastAPI):
     mongo_client = create_motor_client(settings.mongo_url)
     admins = AdminRepository(mongo_client[settings.mongo_db])
     await admins.ensure_indexes()
+    await admins.ensure_from_env(
+        settings.admin_user_id,
+        settings.admin_chat_id,
+        settings.admin_name or None,
+    )
     proxmox = ProxmoxClient(
         host=settings.proxmox_host,
         token_id=settings.proxmox_token_id,
@@ -95,25 +100,6 @@ def create_app() -> FastAPI:
     @app.get("/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
-
-    @app.post("/admins", response_model=AdminOut, status_code=status.HTTP_201_CREATED)
-    async def register_admin(
-        payload: AdminCreate,
-        x_registration_token: Annotated[str | None, Header()] = None,
-        container: AppState = Depends(get_container),
-    ) -> AdminOut:
-        if (
-            not x_registration_token
-            or x_registration_token != container.settings.registration_token
-        ):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
-        try:
-            return await container.admins.create(payload)
-        except AdminAlreadyExistsError:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Admin already exists",
-            ) from None
 
     @app.get("/access", status_code=status.HTTP_204_NO_CONTENT)
     async def check_access(
