@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Awaitable, Callable
 
 from aiogram import BaseMiddleware
-from aiogram.types import CallbackQuery, Message, TelegramObject
+from aiogram.types import CallbackQuery, Message, TelegramObject, Update
 
 from src.api.api_client import ApiClient
 
@@ -31,6 +31,14 @@ class AccessMiddleware(BaseMiddleware):
 
 
 def _extract_ids(event: TelegramObject) -> tuple[int | None, int | None]:
+    if isinstance(event, Update):
+        if event.message:
+            return _extract_ids(event.message)
+        if event.callback_query:
+            return _extract_ids(event.callback_query)
+        if event.edited_message:
+            return _extract_ids(event.edited_message)
+        return None, None
     if isinstance(event, Message) and event.from_user and event.chat:
         return event.from_user.id, event.chat.id
     if isinstance(event, CallbackQuery) and event.from_user and event.message:
