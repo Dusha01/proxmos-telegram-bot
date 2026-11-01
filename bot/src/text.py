@@ -9,13 +9,20 @@ STATUS_LABELS = {
     "unknown": "неизвестно",
 }
 
+STATUS_POWER_LABELS = {
+    "running": "включена",
+    "stopped": "выключена",
+    "paused": "на паузе",
+    "unknown": "неизвестно",
+}
+
 ACTION_LABELS = {
     "start": "Запуск",
     "stop": "Стоп",
-    "shutdown": "Выключение (ACPI)",
+    "shutdown": "Выключить (ACPI)",
     "suspend": "Пауза",
     "resume": "Продолжить",
-    "reboot": "Перезагрузка",
+    "reboot": "Перезагрузить",
 }
 
 
@@ -37,16 +44,39 @@ def format_power_notification(
     action: str,
     *,
     actor: dict | None = None,
+    reached_expected: bool = True,
 ) -> str:
     kind = str(guest.get("kind", "?")).upper()
     vmid = guest.get("vmid", "?")
     name = guest.get("name", "")
     status = guest.get("status", "unknown")
     status_label = STATUS_LABELS.get(status, status)
+    power = STATUS_POWER_LABELS.get(status, status)
     who = format_actor_name(actor)
     actor_part = f"\nИнициатор: {who}" if who else ""
+    expected = _expected_status_for_action(action)
 
-    if action == "stop":
+    if reached_expected and status == expected:
+        if action == "start":
+            detail = "успешно <b>включена</b>"
+        elif action == "stop":
+            detail = "успешно остановлена (<b>стоп</b>)"
+        elif action == "shutdown":
+            detail = "успешно <b>выключена</b>"
+        elif action == "reboot":
+            detail = "успешно <b>перезагружена</b>"
+        elif action == "suspend":
+            detail = "переведена <b>на паузу</b>"
+        elif action == "resume":
+            detail = "успешно <b>включена</b> (продолжение)"
+        else:
+            detail = ACTION_LABELS.get(action, action)
+    elif not reached_expected and expected:
+        detail = (
+            f"команда принята, но за отведённое время статус не стал "
+            f"«{STATUS_POWER_LABELS.get(expected, expected)}»"
+        )
+    elif action == "stop":
         detail = "выполнен <b>стоп</b> (жёсткая остановка)"
     elif action == "shutdown":
         detail = "запрошено <b>выключение (ACPI)</b>"
@@ -56,9 +86,21 @@ def format_power_notification(
     return (
         f"🔔 <b>{kind} {vmid} — {name}</b>\n"
         f"{detail}\n"
-        f"Текущий статус: {status_label}"
+        f"Статус: {status_label} ({power})"
         f"{actor_part}"
     )
+
+
+def _expected_status_for_action(action: str) -> str | None:
+    mapping = {
+        "start": "running",
+        "stop": "stopped",
+        "shutdown": "stopped",
+        "reboot": "running",
+        "suspend": "paused",
+        "resume": "running",
+    }
+    return mapping.get(action)
 
 
 def format_host_shutdown_notification(
@@ -136,3 +178,8 @@ def format_guest_list_title(kind: str, page: int, total: int) -> str:
     kind_label = "QEMU" if kind == "qemu" else "LXC"
     pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
     return f"<b>{kind_label}</b> ({total}), стр. {page + 1}/{pages}"
+
+
+def status_button_label(status: str) -> str:
+    label = STATUS_POWER_LABELS.get(status, status)
+    return f"Статус: {label}"

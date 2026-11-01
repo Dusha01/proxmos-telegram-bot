@@ -5,6 +5,7 @@ from aiogram.filters import CommandStart
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from src.api.api_client import ApiClient, ApiClientError
+from src.power_outcome import ACTION_EXPECTED_STATUS, POWER_NOTIFY_ACTIONS, wait_for_guest_status
 from src.text import (
     ACTION_LABELS,
     PAGE_SIZE,
@@ -14,6 +15,8 @@ from src.text import (
     format_node_detail,
     format_power_notification,
     format_summary,
+    status_button_label,
+    STATUS_POWER_LABELS,
 )
 
 router = Router()
@@ -81,6 +84,33 @@ async def cb_guest_card(callback: CallbackQuery, api: ApiClient, user_id: int, c
         )
 
 
+@router.callback_query(F.data.startswith("st:"))
+async def cb_guest_status(
+    callback: CallbackQuery,
+    api: ApiClient,
+    user_id: int,
+    chat_id: int,
+) -> None:
+    kind, vmid = _parse_guest_ref(callback.data)
+    if kind is None or vmid is None:
+        await callback.answer("Некорректные данные")
+        return
+    try:
+        guest = await api.get_guest(user_id, chat_id, kind, vmid)
+    except ApiClientError as exc:
+        await callback.answer("Ошибка", show_alert=True)
+        if callback.message:
+            await callback.message.answer(str(exc)[:300])
+        return
+    power = STATUS_POWER_LABELS.get(guest.get("status", "unknown"), guest.get("status", "unknown"))
+    await callback.answer(f"Статус: {power}", show_alert=True)
+    if callback.message:
+        await callback.message.edit_text(
+            format_guest(guest),
+            reply_markup=_guest_actions_keyboard(guest),
+        )
+
+
 @router.callback_query(F.data.startswith("a:"))
 async def cb_action_confirm(callback: CallbackQuery) -> None:
     await callback.answer()
@@ -126,13 +156,31 @@ async def cb_action_run(
         return
     await callback.answer("Готово")
     if callback.message:
-        guest = await api.get_guest(user_id, chat_id, kind, vmid)
-        if action in ("stop", "shutdown"):
-            actor = _actor_from_callback(callback)
+        actor = _actor_from_callback(callback)
+        if action in POWER_NOTIFY_ACTIONS:
+            expected = ACTION_EXPECTED_STATUS[action]
+            try:
+                guest, reached = await wait_for_guest_status(
+                    api,
+                    user_id,
+                    chat_id,
+                    kind,
+                    vmid,
+                    expected,
+                )
+            except ApiClientError as exc:
+                await callback.message.answer(str(exc)[:300])
+                return
             await callback.message.answer(
-                format_power_notification(guest, action, actor=actor),
+                format_power_notification(
+                    guest,
+                    action,
+                    actor=actor,
+                    reached_expected=reached,
+                ),
             )
         else:
+            guest = await api.get_guest(user_id, chat_id, kind, vmid)
             msg = result.get("message", "OK") if result else "OK"
             await callback.message.answer(msg)
         await callback.message.edit_text(
@@ -294,12 +342,16 @@ def _guest_actions_keyboard(guest: dict) -> InlineKeyboardMarkup:
         rows.append(
             [
                 InlineKeyboardButton(
-                    text="Выключение",
-                    callback_data=f"a:{prefix}:{vmid}:shutdown",
-                ),
-                InlineKeyboardButton(
-                    text="Перезагрузка",
+                    text="Перезагрузить",
                     callback_data=f"a:{prefix}:{vmid}:reboot",
+                ),
+            ]
+        )
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text="Выключить",
+                    callback_data=f"a:{prefix}:{vmid}:shutdown",
                 ),
             ]
         )
@@ -313,6 +365,14 @@ def _guest_actions_keyboard(guest: dict) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="Стоп", callback_data=f"a:{prefix}:{vmid}:stop"),
             ]
         )
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text=status_button_label(status),
+                callback_data=f"st:{prefix}:{vmid}",
+            )
+        ]
+    )
     back_kind = "m:vm:0" if kind == "qemu" else "m:lx:0"
     rows.append([InlineKeyboardButton(text="« Список", callback_data=back_kind)])
     return InlineKeyboardMarkup(inline_keyboard=rows)
@@ -328,6 +388,8 @@ def _parse_page(data: str, default: int = 0) -> int:
 def _parse_guest_ref(data: str) -> tuple[str | None, int | None]:
     parts = data.split(":")
     if len(parts) != 3:
+        return None, None
+    if parts[0] not in ("g", "st"):
         return None, None
     kind = "qemu" if parts[1] == "q" else "lxc" if parts[1] == "l" else None
     try:
