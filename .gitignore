@@ -14,7 +14,14 @@ Thumbs.db
 
 # .env*
 .env.prod
-.env.dev
+.env.demo
+backend/.env.dev
+bot/.env.dev
+mock/.env.proxmox
+
+# Python venv (backend/, bot/, mock/)
+.venv/
 
 # cache
-.pytest_cache
+.pytest_cache/
+**/.pytest_cache/

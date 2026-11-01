@@ -1,0 +1,15 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY fixtures fixtures
+COPY app.py state.py run.py ./
+
+ENV MOCK_HOST=0.0.0.0
+ENV MOCK_PORT=8006
+ENV MOCK_ALLOW_RESET=1
+
+CMD ["python", "run.py"]

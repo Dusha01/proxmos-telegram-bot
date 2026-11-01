@@ -7,12 +7,22 @@ from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+_BOT_ROOT = Path(__file__).resolve().parents[1]
+
 
 def _resolve_env_file() -> str | None:
-    env_file = os.getenv("ENV_FILE", ".env.dev")
-    path = Path(env_file)
-    if path.is_file():
-        return str(path.resolve())
+    override = os.getenv("ENV_FILE")
+    if override:
+        path = Path(override).expanduser()
+        if not path.is_absolute():
+            path = (_BOT_ROOT / path).resolve()
+        if path.is_file():
+            return str(path)
+        return None
+    for name in (".env.dev", ".env.prod"):
+        candidate = _BOT_ROOT / name
+        if candidate.is_file():
+            return str(candidate)
     return None
 
 

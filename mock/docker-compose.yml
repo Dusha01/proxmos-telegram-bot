@@ -1,0 +1,45 @@
+name: proxmos-bot-demo
+
+services:
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo_demo_data:/data/db
+
+  proxmox-mock:
+    build:
+      context: .
+      dockerfile: Docker/Dockerfile.prod
+    env_file:
+      - .env.example
+
+  api:
+    build:
+      context: ../backend
+      dockerfile: Docker/Dockerfile.prod
+    env_file:
+      - ../.env.demo
+      - .env.proxmox.example
+    depends_on:
+      - mongo
+      - proxmox-mock
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ../backend/src:/app/src:ro
+
+  bot:
+    build:
+      context: ../bot
+      dockerfile: Docker/Dockerfile.prod
+    env_file:
+      - ../.env.demo
+      - .env.proxmox.example
+    depends_on:
+      - api
+    volumes:
+      - ../bot/core:/app/core:ro
+      - ../bot/src:/app/src:ro
+
+volumes:
+  mongo_demo_data:

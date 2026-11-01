@@ -1,0 +1,9 @@
+# Локальное venv и кэши
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Локальные env (шаблоны *.example коммитятся)
+.env
+.env.proxmox

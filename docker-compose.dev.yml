@@ -3,31 +3,20 @@ name: proxmos-bot-dev
 services:
   mongo:
     image: mongo:7
+    ports:
+      - "127.0.0.1:27017:27017"
     volumes:
       - mongo_data:/data/db
 
-  api:
+  proxmox-mock:
     build:
-      context: ./backend
+      context: ./mock
       dockerfile: Docker/Dockerfile.prod
-    env_file: .env.dev
-    depends_on:
-      - mongo
+    env_file:
+      - ./mock/.env.example
     ports:
-      - "127.0.0.1:8000:8000"
-    volumes:
-      - ./backend/src:/app/src:ro
-
-  bot:
-    build:
-      context: ./bot
-      dockerfile: Docker/Dockerfile.prod
-    env_file: .env.dev
-    depends_on:
-      - api
-    volumes:
-      - ./bot/core:/app/core:ro
-      - ./bot/src:/app/src:ro
+      - "127.0.0.1:8006:8006"
 
 volumes:
   mongo_data:
+  
