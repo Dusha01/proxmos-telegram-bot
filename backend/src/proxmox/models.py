@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 GuestKind = Literal["qemu", "lxc"]
 GuestStatus = Literal["running", "stopped", "paused", "unknown"]
-PowerAction = Literal["start", "stop", "shutdown", "suspend", "resume"]
+PowerAction = Literal["start", "stop", "shutdown", "suspend", "resume", "reboot"]
 
 
 class NodeStatus(BaseModel):

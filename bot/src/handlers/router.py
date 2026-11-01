@@ -10,7 +10,9 @@ from src.text import (
     PAGE_SIZE,
     format_guest,
     format_guest_list_title,
+    format_host_shutdown_notification,
     format_node_detail,
+    format_power_notification,
     format_summary,
 )
 
@@ -123,10 +125,16 @@ async def cb_action_run(
             await callback.message.answer(str(exc)[:300])
         return
     await callback.answer("Готово")
-    msg = result.get("message", "OK") if result else "OK"
     if callback.message:
-        await callback.message.answer(msg)
         guest = await api.get_guest(user_id, chat_id, kind, vmid)
+        if action in ("stop", "shutdown"):
+            actor = _actor_from_callback(callback)
+            await callback.message.answer(
+                format_power_notification(guest, action, actor=actor),
+            )
+        else:
+            msg = result.get("message", "OK") if result else "OK"
+            await callback.message.answer(msg)
         await callback.message.edit_text(
             format_guest(guest),
             reply_markup=_guest_actions_keyboard(guest),
@@ -157,6 +165,10 @@ async def cb_host_shutdown_run(
     chat_id: int,
 ) -> None:
     try:
+        node = await api.get_node(user_id, chat_id)
+    except ApiClientError:
+        node = None
+    try:
         result = await api.node_shutdown(user_id, chat_id)
     except ApiClientError as exc:
         await callback.answer("Ошибка", show_alert=True)
@@ -164,8 +176,12 @@ async def cb_host_shutdown_run(
             await callback.message.answer(str(exc)[:300])
         return
     await callback.answer("Команда отправлена")
-    msg = result.get("message", "OK") if result else "OK"
     if callback.message:
+        node_name = node.get("node") if node else None
+        actor = _actor_from_callback(callback)
+        text = format_host_shutdown_notification(node_name=node_name, actor=actor)
+        await callback.message.answer(text)
+        msg = result.get("message", "OK") if result else "OK"
         await callback.message.edit_text(msg)
 
 
@@ -280,7 +296,11 @@ def _guest_actions_keyboard(guest: dict) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text="Выключение",
                     callback_data=f"a:{prefix}:{vmid}:shutdown",
-                )
+                ),
+                InlineKeyboardButton(
+                    text="Перезагрузка",
+                    callback_data=f"a:{prefix}:{vmid}:reboot",
+                ),
             ]
         )
     elif status == "paused":
@@ -345,3 +365,14 @@ async def _reply_error(callback: CallbackQuery, text: str) -> None:
     await callback.answer("Ошибка", show_alert=True)
     if callback.message:
         await callback.message.answer(text[:300])
+
+
+def _actor_from_callback(callback: CallbackQuery) -> dict | None:
+    user = callback.from_user
+    if user is None:
+        return None
+    return {
+        "id": user.id,
+        "full_name": user.full_name,
+        "username": user.username,
+    }

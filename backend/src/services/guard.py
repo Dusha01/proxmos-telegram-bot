@@ -64,6 +64,8 @@ class ActionGuard:
             raise AlreadyInStateError("running")
         if action == "suspend" and current != "running":
             raise InvalidTransitionError(action, current)
+        if action == "reboot" and current != "running":
+            raise InvalidTransitionError(action, current)
         if action in ("stop", "shutdown") and current == "stopped":
             raise AlreadyInStateError("stopped")
         if action == "resume" and current != "paused":

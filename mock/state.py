@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 GuestKind = Literal["qemu", "lxc"]
-PowerAction = Literal["start", "stop", "shutdown", "suspend", "resume"]
+PowerAction = Literal["start", "stop", "shutdown", "suspend", "resume", "reboot"]
 
 FIXTURE_PATH = Path(__file__).resolve().parent / "fixtures" / "cluster.json"
 
@@ -16,6 +16,7 @@ _ACTION_TO_STATUS: dict[PowerAction, str] = {
     "stop": "stopped",
     "shutdown": "stopped",
     "suspend": "paused",
+    "reboot": "running",
 }
 
 
@@ -80,6 +81,8 @@ def _resolve_transition(current: str, action: PowerAction) -> str:
         raise MockStateError(f"resume from {current}")
     if action == "suspend" and current != "running":
         raise MockStateError(f"suspend from {current}")
+    if action == "reboot" and current != "running":
+        raise MockStateError(f"reboot from {current}")
     if action in ("stop", "shutdown") and current == "stopped":
         return "stopped"
     if action in ("start", "resume") and current == "running":

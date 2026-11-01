@@ -15,7 +15,65 @@ ACTION_LABELS = {
     "shutdown": "Выключение (ACPI)",
     "suspend": "Пауза",
     "resume": "Продолжить",
+    "reboot": "Перезагрузка",
 }
+
+
+def format_actor_name(actor: dict | None) -> str:
+    if not actor:
+        return ""
+    name = (actor.get("full_name") or "").strip()
+    if name:
+        return name
+    username = actor.get("username")
+    if username:
+        return f"@{username}"
+    user_id = actor.get("id")
+    return str(user_id) if user_id is not None else ""
+
+
+def format_power_notification(
+    guest: dict,
+    action: str,
+    *,
+    actor: dict | None = None,
+) -> str:
+    kind = str(guest.get("kind", "?")).upper()
+    vmid = guest.get("vmid", "?")
+    name = guest.get("name", "")
+    status = guest.get("status", "unknown")
+    status_label = STATUS_LABELS.get(status, status)
+    who = format_actor_name(actor)
+    actor_part = f"\nИнициатор: {who}" if who else ""
+
+    if action == "stop":
+        detail = "выполнен <b>стоп</b> (жёсткая остановка)"
+    elif action == "shutdown":
+        detail = "запрошено <b>выключение (ACPI)</b>"
+    else:
+        detail = ACTION_LABELS.get(action, action)
+
+    return (
+        f"🔔 <b>{kind} {vmid} — {name}</b>\n"
+        f"{detail}\n"
+        f"Текущий статус: {status_label}"
+        f"{actor_part}"
+    )
+
+
+def format_host_shutdown_notification(
+    *,
+    node_name: str | None = None,
+    actor: dict | None = None,
+) -> str:
+    node = node_name or "Proxmox"
+    who = format_actor_name(actor)
+    actor_part = f"\nИнициатор: {who}" if who else ""
+    return (
+        f"🔔 <b>Хост {node}</b>\n"
+        "Отправлена команда выключения ноды. Бот и API перестанут отвечать после остановки хоста."
+        f"{actor_part}"
+    )
 
 
 def format_bytes(value: int | None) -> str:

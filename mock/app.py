@@ -41,7 +41,7 @@ def create_app() -> FastAPI:
     async def guest_action(kind: str, vmid: int, action: str) -> JSONResponse:
         if kind not in ("qemu", "lxc"):
             raise HTTPException(status_code=404, detail="unknown guest kind")
-        if action not in ("start", "stop", "shutdown", "suspend", "resume"):
+        if action not in ("start", "stop", "shutdown", "suspend", "resume", "reboot"):
             raise HTTPException(status_code=400, detail="unknown action")
         try:
             state.apply_guest_action(kind, vmid, action)  # type: ignore[arg-type]
