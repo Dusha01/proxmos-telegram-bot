@@ -63,6 +63,8 @@ Power actions: `start`, `stop`, `shutdown`, `reboot`, `suspend`, `resume`.
 
 Root `.env.prod`: `MINI_APP_CHAT_ID` for api + web (same value), plus tokens.
 
+In `docker-compose.prod.yml`, set `web` `ports` to your host/LXC LAN IP (e.g. `192.168.1.33:3000:3000`) so Nginx Proxy Manager can use `http://192.168.1.33:3000` as upstream.
+
 ```bash
 docker compose -f docker-compose.prod.yml up -d --build web
 ```

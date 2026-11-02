@@ -35,8 +35,9 @@ services:
       HOST: 0.0.0.0
       PORT: 3000
       BODY_SIZE_LIMIT: Infinity
+    # LAN IP LXC/хоста — upstream для NPM (замените на свой)
     ports:
-      - "127.0.0.1:3000:3000"
+      - "192.168.1.33:3000:3000"
     depends_on:
       - api
     restart: unless-stopped
