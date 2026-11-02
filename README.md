@@ -6,7 +6,7 @@ Telegram-бот и FastAPI-бэкенд для мониторинга и упр�
 
 - **bot** — aiogram 3, long polling, опциональный `TELEGRAM_PROXY_URL`
 - **api** — FastAPI, единственный клиент Proxmox API
-- **mongo** — коллекция `admins` (`user_id` + `chat_id`)
+- **mongo** — коллекция `admins`: две доверенные пары `(ADMIN_USER_ID, ADMIN_CHAT_ID)` и `(ADMIN_USER_ID, MINI_APP_CHAT_ID)`
 
 ## Быстрый старт (dev)
 
@@ -38,11 +38,15 @@ cd bot && python run.py
 В `backend/.env.dev` — `MONGO_URL=mongodb://127.0.0.1:27017`, `PROXMOX_HOST=http://127.0.0.1:8006` (см. `.env.dev.example`).  
 В `bot/.env.dev` — `API_BASE_URL=http://127.0.0.1:8000`, тот же `BOT_API_TOKEN`.
 
-4. Написать боту `/start`.
+4. Написать боту `/start` **в группе** с `ADMIN_CHAT_ID`.
 
-В личке `ADMIN_CHAT_ID` обычно равен `ADMIN_USER_ID`. Для группы укажи отрицательный `chat_id` (узнать можно через `@userinfobot` или лог бота).
+| Переменная | Назначение |
+|------------|------------|
+| `ADMIN_USER_ID` | Telegram user админа |
+| `ADMIN_CHAT_ID` | Группа, где стоит бот (команды / кнопки) |
+| `MINI_APP_CHAT_ID` | Чат, из которого открывают Mini App (часто личка = user id) |
 
-При каждом старте API синхронизирует эту пару в Mongo (upsert).
+При старте API upsert обе пары в Mongo. Mini App из группы **не** принимается (BFF проверяет `MINI_APP_CHAT_ID`).
 
 ## Prod
 
@@ -52,6 +56,17 @@ docker compose -f docker-compose.prod.yml up -d --build
 ```
 
 Регистрация через API не нужна — админ задаётся в `.env.prod`.
+
+## Mini App (Telegram WebApp)
+
+Каталог [`app/`](app/) — SvelteKit + FSD + BFF (`initData` / dev auth). Подробности: [`app/README.md`](app/README.md).
+
+```bash
+cp app/.env.example app/.env
+cd app && npm install && npm run dev
+```
+
+В BotFather укажи URL mini app; в `bot/.env` — `WEBAPP_URL`. Menu button / ссылку на Mini App настрой **в чате `MINI_APP_CHAT_ID`** (не в ops-группе).
 
 ## Демо без Proxmox
 

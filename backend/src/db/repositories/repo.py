@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from datetime import UTC, datetime
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
@@ -19,7 +21,28 @@ class AdminRepository:
             name="user_chat_unique",
         )
 
+    async def ensure_trusted_admin(
+        self,
+        user_id: int,
+        chat_ids: Iterable[int],
+        name: str | None = None,
+    ) -> None:
+        seen: set[int] = set()
+        for chat_id in chat_ids:
+            if chat_id in seen:
+                continue
+            seen.add(chat_id)
+            await self._upsert_admin(user_id, chat_id, name)
+
     async def ensure_from_env(
+        self,
+        user_id: int,
+        chat_id: int,
+        name: str | None = None,
+    ) -> None:
+        await self._upsert_admin(user_id, chat_id, name)
+
+    async def _upsert_admin(
         self,
         user_id: int,
         chat_id: int,

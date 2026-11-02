@@ -38,6 +38,7 @@ class BotSettings(BaseSettings):
     telegram_proxy_url: str = ""
     api_base_url: str = "http://api:8000"
     bot_api_token: str
+    webapp_url: str = ""
 
     @property
     def log_level(self) -> str:

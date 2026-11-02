@@ -44,9 +44,9 @@ async def lifespan(app: FastAPI):
     mongo_client = create_motor_client(settings.mongo_url)
     admins = AdminRepository(mongo_client[settings.mongo_db])
     await admins.ensure_indexes()
-    await admins.ensure_from_env(
+    await admins.ensure_trusted_admin(
         settings.admin_user_id,
-        settings.admin_chat_id,
+        [settings.admin_chat_id, settings.mini_app_chat_id],
         settings.admin_name or None,
     )
     proxmox = ProxmoxClient(

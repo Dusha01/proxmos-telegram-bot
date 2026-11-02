@@ -32,6 +32,7 @@ async def api_client():
             mock_admins = AsyncMock()
             mock_admins.ensure_indexes = AsyncMock()
             mock_admins.ensure_from_env = AsyncMock()
+            mock_admins.ensure_trusted_admin = AsyncMock()
             mock_admins.find_active = AsyncMock(
                 return_value=AdminOut(
                     user_id=1,
@@ -70,6 +71,21 @@ async def test_access_ok_returns_204(api_client) -> None:
     client, _ = api_client
     response = await client.get("/access", headers=_bot_headers())
     assert response.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_access_ok_with_mini_app_chat_id(api_client) -> None:
+    client, mock_admins = api_client
+    mock_admins.find_active.return_value = AdminOut(
+        user_id=1,
+        chat_id=2,
+        name="admin",
+        active=True,
+        created_at=datetime.now(UTC),
+    )
+    response = await client.get("/access", headers=_bot_headers(user_id=1, chat_id=2))
+    assert response.status_code == 204
+    mock_admins.find_active.assert_awaited_with(1, 2)
 
 
 @pytest.mark.asyncio

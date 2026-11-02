@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     bot_api_token: str
     admin_user_id: int
     admin_chat_id: int
+    mini_app_chat_id: int
     admin_name: str = ""
     mongo_url: str = "mongodb://mongo:27017"
     mongo_db: str = "proxmos_bot"

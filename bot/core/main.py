@@ -6,6 +6,7 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.types import MenuButtonWebApp, WebAppInfo
 
 from core.proxy import create_telegram_aiohttp_session
 from core.settings import get_settings
@@ -30,6 +31,14 @@ async def main() -> None:
     dp = Dispatcher()
     dp.update.middleware(AccessMiddleware(api_client))
     dp.include_router(router)
+    if settings.webapp_url.strip():
+        await bot.set_chat_menu_button(
+            menu_button=MenuButtonWebApp(
+                text="Панель",
+                web_app=WebAppInfo(url=settings.webapp_url.strip()),
+            ),
+        )
+        logging.info("WebApp menu button set: %s", settings.webapp_url.strip())
     await dp.start_polling(bot)
 
 

@@ -25,5 +25,21 @@ services:
       - api
     restart: unless-stopped
 
+  web:
+    build:
+      context: ./app
+      dockerfile: Docker/Dockerfile.prod
+    env_file: .env.prod
+    environment:
+      API_BASE_URL: http://api:8000
+      HOST: 0.0.0.0
+      PORT: 3000
+      BODY_SIZE_LIMIT: Infinity
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+
 volumes:
   mongo_data:
