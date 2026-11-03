@@ -5,7 +5,7 @@ runs:
   using: composite
   steps:
     - name: Setup Node
-      uses: actions/setup-node@39370e3970a6d0505852d47bc0b0d6f2a5e3ea69 # v4.1.0
+      uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
       with:
         node-version: '22'
         cache: npm
