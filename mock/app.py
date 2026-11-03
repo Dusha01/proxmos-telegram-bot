@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from state import ClusterState, MockStateError, PowerAction
+from state import ClusterState, MockStateError
 
 logger = logging.getLogger(__name__)
 

@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import AppShell from '$lib/widgets/app-shell/ui/AppShell.svelte';
+	import AppShell from '$lib/widgets/appShell/ui/AppShell.svelte';
 	import Card from '$lib/shared/ui/Card.svelte';
-	import GuestControls from '$lib/widgets/guest-controls/ui/GuestControls.svelte';
+	import GuestControls from '$lib/widgets/guestControls/ui/GuestControls.svelte';
 	import GuestStatusBadge from '$lib/entities/guest/ui/GuestStatusBadge.svelte';
 	import Dialog from '$lib/shared/ui/Dialog.svelte';
-	import { fetchGuest } from '$lib/features/guest-refresh-status/api/fetchGuest';
-	import { runPowerAction } from '$lib/features/guest-power-action/api/runPowerAction';
+	import { fetchGuest } from '$lib/features/guestRefreshStatus/api/fetchGuest';
+	import { runPowerAction } from '$lib/features/guestPowerAction/api/runPowerAction';
 	import { mapActionLabel, formatActionResultMessage } from '$lib/entities/guest';
 	import { mapStatusLabel } from '$lib/entities/guest/lib/mapStatusLabel';
 	import type { GuestDto, GuestKind, PowerAction } from '$lib/shared/api/types';

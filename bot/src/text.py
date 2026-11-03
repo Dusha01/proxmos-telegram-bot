@@ -84,10 +84,7 @@ def format_power_notification(
         detail = ACTION_LABELS.get(action, action)
 
     return (
-        f"🔔 <b>{kind} {vmid} — {name}</b>\n"
-        f"{detail}\n"
-        f"Статус: {status_label} ({power})"
-        f"{actor_part}"
+        f"🔔 <b>{kind} {vmid} — {name}</b>\n{detail}\nСтатус: {status_label} ({power}){actor_part}"
     )
 
 
@@ -168,10 +165,7 @@ def format_node_detail(node: dict) -> str:
 def format_guest(guest: dict) -> str:
     status = STATUS_LABELS.get(guest.get("status", "unknown"), guest.get("status"))
     kind = guest.get("kind", "?").upper()
-    return (
-        f"<b>{kind} {guest.get('vmid')} — {guest.get('name')}</b>\n"
-        f"Статус: {status}"
-    )
+    return f"<b>{kind} {guest.get('vmid')} — {guest.get('name')}</b>\nСтатус: {status}"
 
 
 def format_guest_list_title(kind: str, page: int, total: int) -> str:

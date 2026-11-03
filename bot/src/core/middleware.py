@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from aiogram import BaseMiddleware
 from aiogram.types import CallbackQuery, Message, TelegramObject, Update
@@ -11,6 +12,7 @@ from src.api.api_client import ApiClient
 logger = logging.getLogger(__name__)
 
 ACCESS_DENIED_TEXT = "Нет доступа."
+
 
 class AccessMiddleware(BaseMiddleware):
     def __init__(self, api_client: ApiClient) -> None:

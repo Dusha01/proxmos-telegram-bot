@@ -1,0 +1,115 @@
+# Ветки admin/[BF]-*, telega/[BF]-*, features/F-* и bugfixes/B-* сливаются в stage;
+# после успешного CI на stage удаляем task-ветку и закрываем issue.
+# PR stage → main: CI на main не удаляет ветку stage (она не совпадает с паттерном выше).
+
+name: Cleanup branch after PR merge
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+
+concurrency:
+  group: cleanup-after-ci-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: read
+
+jobs:
+  delete-branch-after-stage-ci:
+    runs-on: ubuntu-latest
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'stage'
+
+    steps:
+      - name: Resolve merged PR, delete branch, close issue
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v7.0.1
+        env:
+          CI_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const headSha = context.payload.workflow_run.head_sha;
+            const ciBranch = process.env.CI_BRANCH || "stage";
+
+            const { data: pulls } =
+              await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                owner,
+                repo,
+                commit_sha: headSha,
+              });
+
+            const branchPattern =
+              /^(bugfixes\/B-|features\/F-|admin\/B-|admin\/F-|telega\/B-|telega\/F-)(\d+)$/;
+            const pr = pulls.find(
+              (p) => p.merged_at && branchPattern.test(p.head.ref),
+            );
+
+            if (!pr) {
+              core.info(
+                "Нет подходящего слитого PR (не task-ветка с поддерживаемым префиксом) — пропуск.",
+              );
+              return;
+            }
+
+            const branchName = pr.head.ref;
+            const m = branchName.match(branchPattern);
+            const issueNumber = parseInt(m[2], 10);
+            const branchType = m[1].includes("B-") ? "B-" : "F-";
+
+            try {
+              await github.rest.git.deleteRef({
+                owner,
+                repo,
+                ref: `heads/${branchName}`,
+              });
+              core.info(`Ветка ${branchName} удалена.`);
+            } catch (e) {
+              const status = e.status ?? e.response?.status;
+              if (status === 422) {
+                core.info(
+                  `Ветка ${branchName} уже отсутствует (422) — продолжаем.`,
+                );
+              } else {
+                throw e;
+              }
+            }
+
+            try {
+              const { data: issue } = await github.rest.issues.get({
+                owner,
+                repo,
+                issue_number: issueNumber,
+              });
+
+              if (issue.state === "open") {
+                await github.rest.issues.update({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  state: "closed",
+                  state_reason: "completed",
+                });
+
+                const branchPrefix = branchType === "B-" ? "bugfix" : "feature";
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  body:
+                    `✅ Закрыто после успешного CI на \`${ciBranch}\` по PR #${pr.number} (${branchPrefix}). Ветка \`${branchName}\` удалена.`,
+                });
+                core.info(`Issue #${issueNumber} закрыт.`);
+              } else {
+                core.info(`Issue #${issueNumber} уже был закрыт.`);
+              }
+            } catch (e) {
+              core.warning(`Не удалось обновить issue #${issueNumber}: ${e}`);
+            }

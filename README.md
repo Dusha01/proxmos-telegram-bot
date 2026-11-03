@@ -92,11 +92,14 @@ curl -s http://127.0.0.1:8000/health
 
 ## Тесты
 
+Перед коммитом Husky гоняет ruff + pytest для затронутых `backend/`, `bot/`, `mock/` и `npm run lint` + `npm test` для `app/` (нужны локальные `.venv` и `app/node_modules`).
+
 Backend:
 
 ```bash
 cd backend
 python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+.venv/bin/ruff check . && .venv/bin/ruff format --check .
 .venv/bin/python -m pytest -q
 ```
 
@@ -105,6 +108,7 @@ Bot:
 ```bash
 cd bot
 python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+.venv/bin/ruff check . && .venv/bin/ruff format --check .
 .venv/bin/python -m pytest -q
 ```
 
@@ -113,8 +117,18 @@ Mock Proxmox:
 ```bash
 cd mock
 python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+.venv/bin/ruff check . && .venv/bin/ruff format --check .
 .venv/bin/python -m pytest -q
 ```
+
+Mini App:
+
+```bash
+cd app && npm install
+npm run lint && npm test && npm run check
+```
+
+Ruff: свой [`ruff.toml`](backend/ruff.toml) в каждом Python-сервисе (`backend/`, `bot/`, `mock/`); команды запускать из каталога сервиса.
 
 Либо `uv sync --extra dev` в каталоге `backend/`, `bot/` или `mock/`.
 

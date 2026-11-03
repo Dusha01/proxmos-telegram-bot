@@ -1,24 +1,22 @@
 <script lang="ts">
 	import './layout.css';
 	import { onMount } from 'svelte';
-	import { fetchMe } from '$lib/features/access-gate/api/fetchMe';
-	import AccessDenied from '$lib/features/access-gate/ui/AccessDenied.svelte';
+	import { fetchMe } from '$lib/features/accessGate/api/fetchMe';
+	import AccessDenied from '$lib/features/accessGate/ui/AccessDenied.svelte';
 	import { initTelegramChrome } from '$lib/shared/lib/telegram/authHeader';
 	import { ApiClientError } from '$lib/shared/api/client';
-	import { userMessageForAccessError } from '$lib/features/access-gate/lib/userAccessMessage';
-	import type { MeDto } from '$lib/shared/api/types';
+	import { userMessageForAccessError } from '$lib/features/accessGate/lib/userAccessMessage';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
 
-	let session = $state<MeDto | null>(null);
 	let denied = $state<{ message: string; detail?: string } | null>(null);
 	let loading = $state(true);
 
 	onMount(async () => {
 		initTelegramChrome();
 		try {
-			session = await fetchMe();
+			await fetchMe();
 		} catch (error) {
 			if (error instanceof ApiClientError) {
 				denied = {

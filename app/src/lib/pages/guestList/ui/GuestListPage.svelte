@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import AppShell from '$lib/widgets/app-shell/ui/AppShell.svelte';
-	import GuestList from '$lib/widgets/guest-list/ui/GuestList.svelte';
-	import { fetchGuestList } from '$lib/features/guest-list/api/fetchGuestList';
+	import AppShell from '$lib/widgets/appShell/ui/AppShell.svelte';
+	import GuestList from '$lib/widgets/guestList/ui/GuestList.svelte';
+	import { fetchGuestList } from '$lib/features/guestList/api/fetchGuestList';
 	import type { GuestDto } from '$lib/shared/api/types';
 	import { ApiClientError } from '$lib/shared/api/client';
 	import { toastStore } from '$lib/shared/ui/toastStore.svelte';

@@ -44,6 +44,7 @@ Open http://localhost:5173 — uses dev auth (`DEV_MINI_APP_CHAT_ID` as chat).
 ## Scripts
 
 - `npm run dev` — Vite dev server + BFF routes
+- `npm run lint` / `npm run lint:fix` — ESLint (Svelte + TS)
 - `npm run build` / `npm run preview` — production Node adapter
 - `npm run check` — svelte-check
 - `npm test` — initData + auth unit tests

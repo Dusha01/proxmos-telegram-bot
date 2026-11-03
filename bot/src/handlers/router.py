@@ -9,6 +9,7 @@ from src.power_outcome import ACTION_EXPECTED_STATUS, POWER_NOTIFY_ACTIONS, wait
 from src.text import (
     ACTION_LABELS,
     PAGE_SIZE,
+    STATUS_POWER_LABELS,
     format_guest,
     format_guest_list_title,
     format_host_shutdown_notification,
@@ -16,7 +17,6 @@ from src.text import (
     format_power_notification,
     format_summary,
     status_button_label,
-    STATUS_POWER_LABELS,
 )
 
 router = Router()
@@ -66,7 +66,9 @@ async def cb_list_lxc(callback: CallbackQuery, api: ApiClient, user_id: int, cha
 
 
 @router.callback_query(F.data.startswith("g:"))
-async def cb_guest_card(callback: CallbackQuery, api: ApiClient, user_id: int, chat_id: int) -> None:
+async def cb_guest_card(
+    callback: CallbackQuery, api: ApiClient, user_id: int, chat_id: int
+) -> None:
     await callback.answer()
     kind, vmid = _parse_guest_ref(callback.data)
     if kind is None or vmid is None:
@@ -280,9 +282,7 @@ async def _show_guest_list(
     prefix = "q" if kind == "qemu" else "l"
     for guest in chunk:
         label = f"{guest['vmid']} {guest['name'][:20]}"
-        rows.append(
-            [InlineKeyboardButton(text=label, callback_data=f"g:{prefix}:{guest['vmid']}")]
-        )
+        rows.append([InlineKeyboardButton(text=label, callback_data=f"g:{prefix}:{guest['vmid']}")])
     nav: list[InlineKeyboardButton] = []
     if page > 0:
         nav.append(
@@ -329,9 +329,7 @@ def _guest_actions_keyboard(guest: dict) -> InlineKeyboardMarkup:
     prefix = "q" if kind == "qemu" else "l"
     rows: list[list[InlineKeyboardButton]] = []
     if status == "stopped":
-        rows.append(
-            [InlineKeyboardButton(text="Запуск", callback_data=f"a:{prefix}:{vmid}:start")]
-        )
+        rows.append([InlineKeyboardButton(text="Запуск", callback_data=f"a:{prefix}:{vmid}:start")])
     elif status == "running":
         rows.append(
             [

@@ -1,0 +1,22 @@
+name: Setup Mini App
+description: Node.js + npm ci for app/
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@39370e3970a6d0505852d47bc0b0d6f2a5e3ea69 # v4.1.0
+      with:
+        node-version: '22'
+        cache: npm
+        cache-dependency-path: app/package-lock.json
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: app
+      run: npm ci
+
+    - name: Generate SvelteKit types
+      shell: bash
+      working-directory: app
+      run: npm run prepare

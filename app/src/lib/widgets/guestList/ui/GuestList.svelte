@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { GuestDto } from '$lib/shared/api/types';
-	import GuestCard from '$lib/widgets/guest-card/ui/GuestCard.svelte';
+	import GuestCard from '$lib/widgets/guestCard/ui/GuestCard.svelte';
 
 	let {
 		guests,

@@ -1,0 +1,150 @@
+#!/usr/bin/env sh
+
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT" || exit 1
+
+STAGED_FILES="$(git diff --cached --name-only --diff-filter=ACMR)"
+
+if [ -z "$STAGED_FILES" ]; then
+	echo "ℹ️ No staged files. Skipping pre-commit checks."
+	exit 0
+fi
+
+restage_paths() {
+	pattern="$1"
+	while IFS= read -r f; do
+		[ -z "$f" ] && continue
+		git -C "$REPO_ROOT" add -- "$f" || return 1
+	done <<EOF
+$(printf '%s\n' "$STAGED_FILES" | rg "$pattern")
+EOF
+}
+
+run_ruff_in_pkg() {
+	pkg_dir="$1"
+	label="$2"
+	restage_pattern="$3"
+
+	echo "🔍 ${label}: ruff…"
+	(
+		cd "$pkg_dir"
+		if ruff check . && ruff format --check .; then
+			echo "✅ ${label} ruff passed"
+			exit 0
+		fi
+		echo "❌ ${label} ruff failed — auto-fixing…"
+		ruff check . --fix
+		ruff format .
+	) || return 1
+
+	restage_paths "$restage_pattern" || return 1
+
+	(
+		cd "$pkg_dir"
+		if ruff check . && ruff format --check .; then
+			echo "✅ ${label} ruff passed"
+			exit 0
+		fi
+		echo "❌ ${label} ruff still failing"
+		exit 1
+	)
+}
+
+run_py_package() {
+	pkg="$1"
+	pkg_dir="$REPO_ROOT/$pkg"
+	venv="$pkg_dir/.venv/bin/activate"
+
+	cd "$REPO_ROOT" || return 1
+
+	if [ ! -f "$venv" ]; then
+		echo "❌ $pkg/.venv missing. Run: cd $pkg && python3 -m venv .venv && . .venv/bin/activate && pip install -r requirements-dev.txt"
+		return 1
+	fi
+
+	# shellcheck disable=SC1091
+	. "$venv"
+
+	if ! command -v ruff >/dev/null 2>&1; then
+		echo "❌ ruff not installed in $pkg/.venv"
+		return 1
+	fi
+	if ! command -v pytest >/dev/null 2>&1; then
+		echo "❌ pytest not installed in $pkg/.venv"
+		return 1
+	fi
+
+	run_ruff_in_pkg "$pkg_dir" "$pkg" "^${pkg}/" || return 1
+
+	echo "🔍 ${pkg}: pytest…"
+	(
+		cd "$pkg_dir"
+		pytest -q
+	) || {
+		echo "❌ ${pkg} pytest failed"
+		return 1
+	}
+	echo "✅ ${pkg} pytest passed"
+}
+
+run_app_checks() {
+	app_dir="$REPO_ROOT/app"
+
+	if [ ! -d "$app_dir/node_modules" ]; then
+		echo "❌ app/node_modules missing. Run: cd app && npm install"
+		return 1
+	fi
+
+	echo "🔍 app: lint…"
+	(
+		cd "$app_dir"
+		npm run lint
+	) || return 1
+	echo "🔍 app: test…"
+	(
+		cd "$app_dir"
+		npm test
+	) || return 1
+	echo "✅ app checks passed"
+}
+
+HAS_APP=false
+HAS_BACKEND=false
+HAS_BOT=false
+HAS_MOCK=false
+
+printf '%s\n' "$STAGED_FILES" | rg -q '^app/' && HAS_APP=true
+printf '%s\n' "$STAGED_FILES" | rg -q '^backend/' && HAS_BACKEND=true
+printf '%s\n' "$STAGED_FILES" | rg -q '^bot/' && HAS_BOT=true
+printf '%s\n' "$STAGED_FILES" | rg -q '^mock/' && HAS_MOCK=true
+printf '%s\n' "$STAGED_FILES" | rg -q '^backend/ruff\.toml$' && HAS_BACKEND=true
+printf '%s\n' "$STAGED_FILES" | rg -q '^bot/ruff\.toml$' && HAS_BOT=true
+printf '%s\n' "$STAGED_FILES" | rg -q '^mock/ruff\.toml$' && HAS_MOCK=true
+
+if [ "$HAS_APP" = true ]; then
+	run_app_checks || exit 1
+else
+	echo "ℹ️ No app/ changes staged — skipping app lint/test"
+fi
+
+if [ "$HAS_BACKEND" = true ]; then
+	run_py_package backend || exit 1
+else
+	echo "ℹ️ No backend/ changes staged — skipping backend checks"
+fi
+
+if [ "$HAS_BOT" = true ]; then
+	run_py_package bot || exit 1
+else
+	echo "ℹ️ No bot/ changes staged — skipping bot checks"
+fi
+
+if [ "$HAS_MOCK" = true ]; then
+	run_py_package mock || exit 1
+else
+	echo "ℹ️ No mock/ changes staged — skipping mock checks"
+fi
+
+echo "✅ pre-commit checks passed"

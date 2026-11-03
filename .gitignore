@@ -5,6 +5,8 @@ Thumbs.db
 .vscode/
 !.vscode/extensions.json
 
+# Node
+node_modules/
 
 # Misc
 *.log

@@ -1,0 +1,125 @@
+# Создаёт ветку при создании issue или добавлении метки:
+# Четкое разделение веток, в зависимости от задачи
+
+#   label "admin-bug" -> admin/B-<номер>
+#   label "admin-features" -> admin/F-<номер>
+#   label "tg-bug" -> telega/B-<номер>
+#   label "tg-features" -> telega/F-<номер>
+#   label "features" (или "enhancement") -> features/F-<номер>
+#   label "bug" -> bugfixes/B-<номер>
+
+
+name: Create issue branch
+
+on:
+  issues:
+    types: [opened, labeled]
+
+concurrency:
+  group: issue-branch-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  create-branch:
+    runs-on: ubuntu-latest
+    # Стандартные issues не содержат pull_request; на всякий случай пропускаем не-issue сущности
+    if: ${{ github.event.issue.pull_request == null }}
+
+    steps:
+      - name: Create branch from labels
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v7.0.1
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issueNumber = context.payload.issue.number;
+
+            const { data: issue } = await github.rest.issues.get({
+              owner,
+              repo,
+              issue_number: issueNumber,
+            });
+
+            const labelNames = issue.labels.map((l) =>
+              typeof l === "string" ? l.toLowerCase() : l.name.toLowerCase(),
+            );
+
+            const labelToBranchTemplate = [
+              ["admin-bug", `admin/B-${issueNumber}`],
+              ["admin-features", `admin/F-${issueNumber}`],
+              ["tg-bug", `telega/B-${issueNumber}`],
+              ["tg-features", `telega/F-${issueNumber}`],
+              ["bug", `bugfixes/B-${issueNumber}`],
+              ["features", `features/F-${issueNumber}`],
+              ["enhancement", `features/F-${issueNumber}`],
+            ];
+
+            const match = labelToBranchTemplate.find(([label]) =>
+              labelNames.includes(label),
+            );
+            const branchName = match ? match[1] : null;
+
+            if (!branchName) {
+              core.info(
+                "Нет поддерживаемых меток для авто-создания ветки — ветка не создаётся.",
+              );
+              return;
+            }
+
+            const { data: repoInfo } = await github.rest.repos.get({
+              owner,
+              repo,
+            });
+            const defaultBranch = repoInfo.default_branch;
+
+            let baseSha;
+            try {
+              const { data: ref } = await github.rest.git.getRef({
+                owner,
+                repo,
+                ref: `heads/${defaultBranch}`,
+              });
+              baseSha = ref.object.sha;
+            } catch (e) {
+              core.setFailed(
+                `Не удалось получить SHA ветки ${defaultBranch}: ${e}`,
+              );
+              return;
+            }
+
+            const serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com";
+            const treeUrl = `${serverUrl}/${owner}/${repo}/tree/${branchName}`;
+
+            try {
+              await github.rest.git.createRef({
+                owner,
+                repo,
+                ref: `refs/heads/${branchName}`,
+                sha: baseSha,
+              });
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                body:
+                  `Ветка [\`${branchName}\`](${treeUrl}) создана от \`${defaultBranch}\`.`,
+              });
+            } catch (e) {
+              const status = e.status ?? e.response?.status;
+              if (status === 422) {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                  body:
+                    `Ветка \`${branchName}\` уже существует — новая не создана.`,
+                });
+                core.info("Ref already exists (422), skipped.");
+                return;
+              }
+              throw e;
+            }

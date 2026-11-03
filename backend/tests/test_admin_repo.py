@@ -5,7 +5,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from db.models.dto import AdminOut
 from db.repositories.repo import AdminRepository
 
 

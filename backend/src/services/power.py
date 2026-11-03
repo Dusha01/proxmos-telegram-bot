@@ -6,7 +6,6 @@ from services.guard import (
     ActionGuard,
     AlreadyInStateError,
     InvalidTransitionError,
-    ProtectedGuestError,
 )
 from services.inventory import InventoryService
 

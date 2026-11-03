@@ -1,5 +1,5 @@
 <script lang="ts">
-	import GuestListPage from '$lib/pages/guest-list/ui/GuestListPage.svelte';
+	import GuestListPage from '$lib/pages/guestList/ui/GuestListPage.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();

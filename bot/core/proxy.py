@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from aiogram.client.session.aiohttp import AiohttpSession
 
@@ -10,7 +9,7 @@ logger = logging.getLogger(__name__)
 _EMPTY_PROXY_VALUES = frozenset({"none", "null", "-", "off", "false"})
 
 
-def normalize_proxy_url(proxy_url: Optional[str]) -> Optional[str]:
+def normalize_proxy_url(proxy_url: str | None) -> str | None:
     raw = (proxy_url or "").strip()
     if not raw:
         return None
@@ -19,7 +18,7 @@ def normalize_proxy_url(proxy_url: Optional[str]) -> Optional[str]:
     return raw
 
 
-def create_telegram_aiohttp_session(proxy_url: Optional[str]) -> AiohttpSession:
+def create_telegram_aiohttp_session(proxy_url: str | None) -> AiohttpSession:
     normalized = normalize_proxy_url(proxy_url)
     if normalized is None:
         logger.info("Telegram API: прямое подключение (без прокси)")

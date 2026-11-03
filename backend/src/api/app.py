@@ -12,7 +12,14 @@ from core.settings import Settings, get_settings
 from db.models.dto import AdminOut
 from db.repositories.repo import AdminRepository, create_motor_client
 from proxmox.client import ProxmoxClient, ProxmoxError
-from proxmox.models import Guest, GuestKind, GuestListResponse, NodeStatus, PowerAction, SummaryResponse
+from proxmox.models import (
+    Guest,
+    GuestKind,
+    GuestListResponse,
+    NodeStatus,
+    PowerAction,
+    SummaryResponse,
+)
 from services.guard import ActionGuard, ProtectedGuestError
 from services.inventory import InventoryService
 from services.power import ActionNotAllowedError, GuestNotFoundError, PowerService
