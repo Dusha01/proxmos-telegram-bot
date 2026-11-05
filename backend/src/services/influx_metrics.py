@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from core.settings import Settings
 from influx.client import InfluxClient
-from influx.csv_parse import parse_annotated_csv, series_label_from_table
+from influx.csv_parse import parse_annotated_csv
 from influx.queries import (
     cpu_percent_last,
     cpu_percent_series,
@@ -14,8 +14,10 @@ from influx.queries import (
     load_avg_series,
     memory_field_series,
     memory_ratio_series,
+    smart_disk_temperature_series,
 )
 from proxmox.models import MetricPoint, MetricSeries
+from services.disk_sensor_labels import is_disk_temperature_field, label_disk_series_table
 
 
 @dataclass
@@ -112,8 +114,32 @@ class InfluxMetricsService:
     async def fetch_disk_temperature_series(self) -> list[MetricSeries]:
         host = self._host
         bucket = self._bucket_hardware()
-        csv_text = await self._client.query_csv(disk_temperature_series(bucket=bucket, host=host))
-        return self._multi_series(csv_text, unit="°C")
+        temp_csv, smart_csv = await asyncio.gather(
+            self._client.query_csv(disk_temperature_series(bucket=bucket, host=host)),
+            self._client.query_csv(smart_disk_temperature_series(bucket=bucket, host=host)),
+        )
+        merged: dict[str, MetricSeries] = {}
+        for table in parse_annotated_csv(temp_csv):
+            label = label_disk_series_table(table)
+            if label is None or not table.points:
+                continue
+            merged[label] = self._series_from_table(table, label=label, unit="°C")
+        for table in parse_annotated_csv(smart_csv):
+            field = table.labels.get("_field", "")
+            if not is_disk_temperature_field(field):
+                continue
+            label = label_disk_series_table(table)
+            if label is None or not table.points:
+                continue
+            merged[label] = self._series_from_table(table, label=label, unit="°C")
+        return sorted(merged.values(), key=lambda item: item.label)
+
+    def _series_from_table(self, table, *, label: str, unit: str) -> MetricSeries:
+        points = [
+            MetricPoint(timestamp=ts, value=round(value, 1))
+            for ts, value in sorted(table.points, key=lambda item: item[0])
+        ]
+        return MetricSeries(label=label, unit=unit, points=points)
 
     def _single_series(self, csv_text: str, *, label: str, unit: str) -> MetricSeries:
         tables = parse_annotated_csv(csv_text)
@@ -130,12 +156,8 @@ class InfluxMetricsService:
         for table in parse_annotated_csv(csv_text):
             if not table.points:
                 continue
-            label = series_label_from_table(table)
-            points = [
-                MetricPoint(timestamp=ts, value=round(value, 1))
-                for ts, value in sorted(table.points, key=lambda item: item[0])
-            ]
-            result.append(MetricSeries(label=label, unit=unit, points=points))
+            label = table.labels.get("sensor") or table.labels.get("_field", "value")
+            result.append(self._series_from_table(table, label=str(label), unit=unit))
         result.sort(key=lambda item: item.label)
         return result
 

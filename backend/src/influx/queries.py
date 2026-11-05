@@ -91,6 +91,16 @@ from(bucket: "{bucket}")
 """.strip()
 
 
+def smart_disk_temperature_series(*, bucket: str, host: str) -> str:
+    return f"""
+from(bucket: "{bucket}")
+  |> range(start: -1h)
+  |> filter(fn: (r) => r._measurement == "smart_device" and r.host == "{host}")
+  |> filter(fn: (r) => r._field =~ /(?i)temp/)
+  |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)
+""".strip()
+
+
 def cpu_percent_last(*, bucket: str, host: str) -> str:
     filt = _node_cpustat_filter(host, "cpu")
     return f"""

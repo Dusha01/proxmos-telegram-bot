@@ -1,27 +1,23 @@
 <script lang="ts">
-	import MetricLineChart from '$lib/widgets/metricChart/ui/MetricLineChart.svelte';
+	import MetricMultiLineChart from '$lib/widgets/metricChart/ui/MetricMultiLineChart.svelte';
 	import type { NodeMetricsDto } from '$lib/shared/api/types';
 
 	let { metrics }: { metrics: NodeMetricsDto } = $props();
-
-	const diskColors = ['#e67e22', '#16a085', '#c0392b', '#2980b9', '#8e44ad'];
 </script>
 
 <section class="section" aria-labelledby="disk-temp-heading">
 	<h2 id="disk-temp-heading">Температура дисков</h2>
 	{#if metrics.diskTemperatureAvailable && metrics.diskTemperatureSeries.length > 0}
-		<div class="charts">
-			{#each metrics.diskTemperatureSeries as series, i (series.label)}
-				<MetricLineChart
-					series={series}
-					label={series.label}
-					unit="°C"
-					stroke={diskColors[i % diskColors.length]}
-				/>
-			{/each}
-		</div>
+		<MetricMultiLineChart
+			seriesList={metrics.diskTemperatureSeries}
+			title="Диски (последний час)"
+			unit="°C"
+		/>
+		<p class="hint">
+			Для каждого NVMe/HDD нужны точки SMART в bucket <code>hardware</code> (см. docs/telegraf-disk-temperature.example.conf).
+		</p>
 	{:else}
-		<p class="empty">Температура дисков недоступна (нет полей *_temp в RRD ноды).</p>
+		<p class="empty">Температура дисков недоступна в Influx (hardware).</p>
 	{/if}
 </section>
 
@@ -34,9 +30,14 @@
 		margin: 0;
 		font-size: 1rem;
 	}
-	.charts {
-		display: grid;
-		gap: 0.65rem;
+	.hint {
+		margin: 0;
+		font-size: 0.75rem;
+		color: var(--tg-theme-hint-color, #666);
+		line-height: 1.35;
+	}
+	code {
+		font-size: 0.72rem;
 	}
 	.empty {
 		margin: 0;
