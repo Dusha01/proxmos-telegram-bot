@@ -3,7 +3,12 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from influx_samples_data import SAMPLE_CPU_CSV, SAMPLE_CPU_LAST, SAMPLE_MEMORY_LAST
+from influx_samples_data import (
+    SAMPLE_CPU_CSV,
+    SAMPLE_CPU_LAST,
+    SAMPLE_MEMORY_LAST,
+    SAMPLE_SMART_DISK_TEMP_CSV,
+)
 
 from core.settings import Settings
 from influx.client import InfluxClient
@@ -63,3 +68,13 @@ async def test_fetch_memory_snapshot(influx_settings: Settings) -> None:
     assert snap.used == 8_000_000_000
     assert snap.total == 10_000_000_000
     assert snap.used_percent == 80.0
+
+
+@pytest.mark.asyncio
+async def test_fetch_disk_temperature_series_from_smart(influx_settings: Settings) -> None:
+    client = MagicMock(spec=InfluxClient)
+    client.query_csv = AsyncMock(return_value=SAMPLE_SMART_DISK_TEMP_CSV)
+    service = InfluxMetricsService(client, influx_settings)
+    series = await service.fetch_disk_temperature_series()
+    assert [item.label for item in series] == ["NVMe 0", "NVMe 1", "HDD sdb"]
+    assert series[0].points[-1].value == 36.0

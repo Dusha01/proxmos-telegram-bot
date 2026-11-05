@@ -96,7 +96,7 @@ def smart_disk_temperature_series(*, bucket: str, host: str) -> str:
 from(bucket: "{bucket}")
   |> range(start: -1h)
   |> filter(fn: (r) => r._measurement == "smart_device" and r.host == "{host}")
-  |> filter(fn: (r) => r._field =~ /(?i)temp/)
+  |> filter(fn: (r) => r._field == "temp_c")
   |> aggregateWindow(every: 5m, fn: mean, createEmpty: false)
 """.strip()
 

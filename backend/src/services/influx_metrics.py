@@ -17,7 +17,11 @@ from influx.queries import (
     smart_disk_temperature_series,
 )
 from proxmox.models import MetricPoint, MetricSeries
-from services.disk_sensor_labels import is_disk_temperature_field, label_disk_series_table
+from services.disk_sensor_labels import (
+    disk_series_sort_key,
+    is_disk_temperature_field,
+    label_disk_series_table,
+)
 
 
 @dataclass
@@ -114,16 +118,10 @@ class InfluxMetricsService:
     async def fetch_disk_temperature_series(self) -> list[MetricSeries]:
         host = self._host
         bucket = self._bucket_hardware()
-        temp_csv, smart_csv = await asyncio.gather(
-            self._client.query_csv(disk_temperature_series(bucket=bucket, host=host)),
-            self._client.query_csv(smart_disk_temperature_series(bucket=bucket, host=host)),
+        smart_csv = await self._client.query_csv(
+            smart_disk_temperature_series(bucket=bucket, host=host)
         )
         merged: dict[str, MetricSeries] = {}
-        for table in parse_annotated_csv(temp_csv):
-            label = label_disk_series_table(table)
-            if label is None or not table.points:
-                continue
-            merged[label] = self._series_from_table(table, label=label, unit="°C")
         for table in parse_annotated_csv(smart_csv):
             field = table.labels.get("_field", "")
             if not is_disk_temperature_field(field):
@@ -132,7 +130,19 @@ class InfluxMetricsService:
             if label is None or not table.points:
                 continue
             merged[label] = self._series_from_table(table, label=label, unit="°C")
-        return sorted(merged.values(), key=lambda item: item.label)
+
+        if merged:
+            return sorted(merged.values(), key=lambda item: disk_series_sort_key(item.label))
+
+        temp_csv = await self._client.query_csv(disk_temperature_series(bucket=bucket, host=host))
+        for table in parse_annotated_csv(temp_csv):
+            label = label_disk_series_table(table)
+            if label is None or not table.points:
+                continue
+            if label == "NVMe (composite)":
+                continue
+            merged[label] = self._series_from_table(table, label=label, unit="°C")
+        return sorted(merged.values(), key=lambda item: disk_series_sort_key(item.label))
 
     def _series_from_table(self, table, *, label: str, unit: str) -> MetricSeries:
         points = [

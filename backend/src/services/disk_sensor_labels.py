@@ -50,4 +50,23 @@ def is_disk_temperature_field(field: str) -> bool:
     normalized = field.lower()
     if normalized in {"exit_status", "exit_status_code"}:
         return False
-    return "temp" in normalized or normalized in {"temperature", "temperature_celsius"}
+    return (
+        normalized == "temp_c"
+        or "temp" in normalized
+        or normalized
+        in {
+            "temperature",
+            "temperature_celsius",
+        }
+    )
+
+
+def disk_series_sort_key(label: str) -> tuple[int, str]:
+    order = {
+        "NVMe 0": 0,
+        "NVMe 1": 1,
+        "HDD sda": 2,
+        "HDD sdb": 3,
+        "HDD sdc": 4,
+    }
+    return (order.get(label, 100), label)

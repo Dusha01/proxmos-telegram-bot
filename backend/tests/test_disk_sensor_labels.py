@@ -24,6 +24,7 @@ def test_skip_cpu_sensor() -> None:
 
 
 def test_disk_temperature_field_filter() -> None:
+    assert is_disk_temperature_field("temp_c")
     assert is_disk_temperature_field("Temperature")
     assert is_disk_temperature_field("Temperature_Celsius")
     assert not is_disk_temperature_field("exit_status")
