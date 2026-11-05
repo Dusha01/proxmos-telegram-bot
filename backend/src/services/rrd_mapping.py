@@ -9,6 +9,11 @@ _RRD_META_KEYS = frozenset(
         "maxcpu",
         "mem",
         "maxmem",
+        "memused",
+        "memtotal",
+        "memavailable",
+        "roottotal",
+        "rootused",
         "loadavg",
         "netin",
         "netout",
@@ -73,6 +78,50 @@ def _extract_series(
     return MetricSeries(label=label, unit=unit, points=points)
 
 
+def _extract_ratio_series(
+    rows: list[dict],
+    numerator_key: str,
+    denominator_key: str,
+    *,
+    scale: float = 100.0,
+    label: str,
+    unit: str,
+) -> MetricSeries:
+    points: list[MetricPoint] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        ts = row.get("time")
+        num_raw = row.get(numerator_key)
+        den_raw = row.get(denominator_key)
+        if ts is None or num_raw is None or den_raw is None:
+            continue
+        try:
+            denominator = float(den_raw)
+            if denominator <= 0:
+                continue
+            value = float(num_raw) / denominator * scale
+        except (TypeError, ValueError):
+            continue
+        points.append(MetricPoint(timestamp=int(ts), value=value))
+    points.sort(key=lambda p: p.timestamp)
+    return MetricSeries(label=label, unit=unit, points=points)
+
+
+def latest_rrd_scalar(rows: list[dict], key: str, *, scale: float = 1.0) -> float | None:
+    for row in reversed(rows):
+        if not isinstance(row, dict):
+            continue
+        raw = row.get(key)
+        if raw is None:
+            continue
+        try:
+            return float(raw) * scale
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
 def map_rrd_to_load_series(rows: list[dict]) -> list[MetricSeries]:
     series: list[MetricSeries] = []
     cpu = _extract_series(rows, "cpu", scale=100.0, label="CPU", unit="%")
@@ -88,6 +137,16 @@ def map_rrd_to_memory_series(rows: list[dict]) -> MetricSeries | None:
     mem = _extract_series(rows, "mem", scale=100.0, label="RAM", unit="%")
     if mem.points:
         return mem
+    ratio = _extract_ratio_series(
+        rows,
+        "memused",
+        "memtotal",
+        scale=100.0,
+        label="RAM",
+        unit="%",
+    )
+    if ratio.points:
+        return ratio
     used = _extract_series(rows, "memused", scale=1.0, label="RAM used", unit="B")
     if used.points:
         return used

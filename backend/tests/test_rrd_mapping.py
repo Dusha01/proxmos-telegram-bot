@@ -42,3 +42,14 @@ def test_map_rrd_disk_temperature_series() -> None:
     assert available is True
     assert [s.label for s in series] == ["nvme0n1", "sda"]
     assert series[0].points[-1].value == 46.0
+
+
+def test_map_rrd_memory_from_memused_total() -> None:
+    rows = [
+        {"time": 1, "memused": 8_000_000_000, "memtotal": 10_000_000_000},
+        {"time": 2, "memused": 7_500_000_000, "memtotal": 10_000_000_000},
+    ]
+    mem = map_rrd_to_memory_series(rows)
+    assert mem is not None
+    assert mem.unit == "%"
+    assert mem.points[-1].value == 75.0

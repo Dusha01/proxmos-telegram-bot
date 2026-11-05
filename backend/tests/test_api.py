@@ -169,6 +169,54 @@ async def test_node_metrics(api_client) -> None:
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_node_metrics_pve9_status_and_rrd(api_client) -> None:
+    client, _ = api_client
+    respx.get("https://pve.test:8006/api2/json/nodes/pve/status").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "data": {
+                    "uptime": 100,
+                    "cpu": 0,
+                    "memory": {"used": 8, "total": 10, "available": 2, "free": 2},
+                    "rootfs": {"used": 1, "total": 100, "avail": 99, "free": 99},
+                    "cpuinfo": {"cpus": 8},
+                    "loadavg": [0.1, 0.2, 0.3],
+                }
+            },
+        )
+    )
+    respx.get("https://pve.test:8006/api2/json/nodes/pve/rrddata").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "data": [
+                    {
+                        "time": 1,
+                        "cpu": 0.15,
+                        "memused": 8,
+                        "memtotal": 10,
+                        "rootused": 1,
+                        "roottotal": 100,
+                    }
+                ]
+            },
+        )
+    )
+    respx.get("https://pve.test:8006/api2/json/nodes/pve/storage").mock(
+        return_value=httpx.Response(200, json={"data": []})
+    )
+    response = await client.get("/node/metrics", headers=_bot_headers())
+    assert response.status_code == 200
+    body = response.json()
+    assert body["memory_percent"] == 80.0
+    assert body["cpu_percent"] == 15.0
+    assert body["root_disk"]["used_percent"] == 1.0
+    assert body["memory_series"]["points"][0]["value"] == 80.0
+
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_node_reboot(api_client) -> None:
     client, _ = api_client
     route = respx.post("https://pve.test:8006/api2/json/nodes/pve/status").mock(
