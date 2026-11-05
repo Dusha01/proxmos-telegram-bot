@@ -31,6 +31,8 @@ class ClusterState:
         self._status: dict[str, Any] = copy.deepcopy(data["status"])
         self._qemu: list[dict[str, Any]] = copy.deepcopy(data.get("qemu", []))
         self._lxc: list[dict[str, Any]] = copy.deepcopy(data.get("lxc", []))
+        self._storage: list[dict[str, Any]] = copy.deepcopy(data.get("storage", []))
+        self._rrddata_hour: list[dict[str, Any]] = copy.deepcopy(data.get("rrddata_hour", []))
 
     @classmethod
     def from_fixture(cls, path: Path | None = None) -> ClusterState:
@@ -43,6 +45,8 @@ class ClusterState:
         self._status = fresh._status
         self._qemu = fresh._qemu
         self._lxc = fresh._lxc
+        self._storage = fresh._storage
+        self._rrddata_hour = fresh._rrddata_hour
 
     @property
     def node_name(self) -> str:
@@ -69,8 +73,19 @@ class ClusterState:
         new_status = _resolve_transition(current, action)
         guest["status"] = new_status
 
+    def list_storage(self) -> list[dict[str, Any]]:
+        return copy.deepcopy(self._storage)
+
+    def list_rrddata(self, timeframe: str) -> list[dict[str, Any]]:
+        if timeframe != "hour":
+            return []
+        return copy.deepcopy(self._rrddata_hour)
+
     def record_node_shutdown(self) -> None:
         self._status["uptime"] = 0
+
+    def record_node_reboot(self) -> None:
+        self._status["uptime"] = 120
 
 
 def _resolve_transition(current: str, action: PowerAction) -> str:

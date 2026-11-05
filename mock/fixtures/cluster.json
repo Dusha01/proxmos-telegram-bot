@@ -10,6 +10,32 @@
     "maxdisk": 536870912000,
     "loadavg": [0.42, 0.35, 0.28]
   },
+  "storage": [
+    {
+      "storage": "local-lvm",
+      "type": "lvmthin",
+      "enabled": 1,
+      "used": 107374182400,
+      "total": 536870912000,
+      "avail": 429496729600
+    },
+    {
+      "storage": "local",
+      "type": "dir",
+      "enabled": 1,
+      "used": 53687091200,
+      "total": 268435456000,
+      "avail": 214748364800
+    }
+  ],
+  "rrddata_hour": [
+    {"time": 1730700000, "cpu": 0.12, "mem": 0.225, "loadavg": 0.35, "temp": 42.0, "sda_temp": 34.0, "nvme0n1_temp": 38.0},
+    {"time": 1730700600, "cpu": 0.15, "mem": 0.231, "loadavg": 0.38, "temp": 43.0, "sda_temp": 35.0, "nvme0n1_temp": 39.0},
+    {"time": 1730701200, "cpu": 0.18, "mem": 0.24, "loadavg": 0.42, "temp": 44.0, "sda_temp": 36.0, "nvme0n1_temp": 41.0},
+    {"time": 1730701800, "cpu": 0.14, "mem": 0.235, "loadavg": 0.40, "temp": 43.5, "sda_temp": 35.5, "nvme0n1_temp": 40.0},
+    {"time": 1730702400, "cpu": 0.20, "mem": 0.252, "loadavg": 0.45, "temp": 45.0, "sda_temp": 37.0, "nvme0n1_temp": 42.0},
+    {"time": 1730703000, "cpu": 0.17, "mem": 0.248, "loadavg": 0.41, "temp": 44.2, "sda_temp": 36.5, "nvme0n1_temp": 41.5}
+  ],
   "qemu": [
     {"vmid": 101, "name": "demo-web", "status": "running"},
     {"vmid": 102, "name": "demo-db", "status": "stopped"},

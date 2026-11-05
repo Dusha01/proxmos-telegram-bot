@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -39,3 +40,54 @@ class SummaryResponse(BaseModel):
     qemu_running: int
     lxc_total: int
     lxc_running: int
+
+
+class MetricPoint(BaseModel):
+    timestamp: int
+    value: float
+
+
+class MetricSeries(BaseModel):
+    label: str
+    unit: str = ""
+    points: list[MetricPoint] = Field(default_factory=list)
+
+
+class StorageVolume(BaseModel):
+    id: str
+    name: str
+    type: str | None = None
+    used: int
+    total: int
+    avail: int
+    used_percent: float
+
+
+class RootDiskUsage(BaseModel):
+    used: int
+    total: int
+    used_percent: float
+
+
+class NodeMetricsResponse(BaseModel):
+    node: str
+    uptime: int | None = None
+    load_series: list[MetricSeries] = Field(default_factory=list)
+    memory_series: MetricSeries | None = None
+    temperature_series: list[MetricSeries] = Field(default_factory=list)
+    temperature_available: bool = False
+    disk_temperature_series: list[MetricSeries] = Field(default_factory=list)
+    disk_temperature_available: bool = False
+    storages: list[StorageVolume] = Field(default_factory=list)
+    root_disk: RootDiskUsage | None = None
+    loadavg: list[float] = Field(default_factory=list)
+    cpu_percent: float | None = None
+    memory_percent: float | None = None
+
+
+class NodeHealthResponse(BaseModel):
+    ok: bool
+    node: str
+    uptime: int | None = None
+    warnings: list[str] = Field(default_factory=list)
+    checked_at: datetime

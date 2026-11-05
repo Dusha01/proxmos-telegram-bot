@@ -1,3 +1,3 @@
-# metricsFetch (v2)
+# metricsFetch
 
-Placeholder for loading metric series via future BFF `/api/metrics/*`.
+Client fetch for `GET /api/node/metrics` (Proxmox node RRD + storage snapshot).

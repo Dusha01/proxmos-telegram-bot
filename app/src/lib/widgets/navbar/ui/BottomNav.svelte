@@ -18,18 +18,18 @@
 <style>
 	.nav {
 		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: 0.35rem;
+		grid-template-columns: repeat(4, 1fr);
+		gap: 0.25rem;
 		padding: 0.35rem;
 		background: var(--tg-theme-secondary-bg-color, #eef2f7);
 		border-radius: 1rem;
 	}
 	.tab {
 		text-align: center;
-		padding: 0.55rem 0.35rem;
+		padding: 0.5rem 0.2rem;
 		border-radius: 0.75rem;
 		font-weight: 600;
-		font-size: 0.85rem;
+		font-size: 0.72rem;
 		text-decoration: none;
 		color: var(--tg-theme-text-color, #111);
 	}

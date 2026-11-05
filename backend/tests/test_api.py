@@ -111,3 +111,69 @@ async def test_guest_list_calls_proxmox(api_client) -> None:
     response = await client.get("/guests?kind=qemu", headers=_bot_headers())
     assert response.status_code == 200
     assert response.json()["total"] == 0
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_node_metrics(api_client) -> None:
+    client, _ = api_client
+    respx.get("https://pve.test:8006/api2/json/nodes/pve/status").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "data": {
+                    "node": "pve",
+                    "uptime": 100,
+                    "cpu": 0.2,
+                    "mem": 1,
+                    "maxmem": 10,
+                    "disk": 1,
+                    "maxdisk": 10,
+                    "loadavg": [0.1, 0.2, 0.3],
+                }
+            },
+        )
+    )
+    respx.get("https://pve.test:8006/api2/json/nodes/pve/rrddata").mock(
+        return_value=httpx.Response(
+            200,
+            json={"data": [{"time": 1, "cpu": 0.2, "mem": 0.25, "temp": 40, "sda_temp": 35}]},
+        )
+    )
+    respx.get("https://pve.test:8006/api2/json/nodes/pve/storage").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "data": [
+                    {
+                        "storage": "local",
+                        "type": "dir",
+                        "enabled": 1,
+                        "used": 1,
+                        "total": 10,
+                        "avail": 9,
+                    }
+                ]
+            },
+        )
+    )
+    response = await client.get("/node/metrics", headers=_bot_headers())
+    assert response.status_code == 200
+    body = response.json()
+    assert body["node"] == "pve"
+    assert body["temperature_available"] is True
+    assert body["disk_temperature_available"] is True
+    assert len(body["disk_temperature_series"]) == 1
+    assert len(body["storages"]) == 1
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_node_reboot(api_client) -> None:
+    client, _ = api_client
+    route = respx.post("https://pve.test:8006/api2/json/nodes/pve/status").mock(
+        return_value=httpx.Response(200, json={"data": None})
+    )
+    response = await client.post("/node/reboot", headers=_bot_headers())
+    assert response.status_code == 200
+    assert route.called
