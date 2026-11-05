@@ -16,12 +16,15 @@ from proxmox.models import (
     Guest,
     GuestKind,
     GuestListResponse,
+    NodeHealthResponse,
+    NodeMetricsResponse,
     NodeStatus,
     PowerAction,
     SummaryResponse,
 )
 from services.guard import ActionGuard, ProtectedGuestError
 from services.inventory import InventoryService
+from services.node_metrics import NodeMetricsService
 from services.power import ActionNotAllowedError, GuestNotFoundError, PowerService
 
 logger = logging.getLogger(__name__)
@@ -34,6 +37,7 @@ class AppState:
     admins: AdminRepository
     proxmox: ProxmoxClient
     inventory: InventoryService
+    metrics: NodeMetricsService
     power: PowerService
 
 
@@ -65,6 +69,7 @@ async def lifespan(app: FastAPI):
     )
     guard = ActionGuard(settings.protected_guest_keys())
     inventory = InventoryService(proxmox)
+    metrics = NodeMetricsService(proxmox)
     power = PowerService(proxmox, inventory, guard)
     app.state.container = AppState(
         settings=settings,
@@ -72,6 +77,7 @@ async def lifespan(app: FastAPI):
         admins=admins,
         proxmox=proxmox,
         inventory=inventory,
+        metrics=metrics,
         power=power,
     )
     logger.info("API started (env=%s)", settings.app_env)
@@ -200,6 +206,40 @@ def create_app() -> FastAPI:
         except ProxmoxError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
         return {"message": message}
+
+    @app.post("/node/reboot")
+    async def node_reboot(
+        _: None = Depends(verify_bot_token),
+        __: AdminOut = Depends(require_admin),
+        container: AppState = Depends(get_container),
+    ) -> dict[str, str]:
+        try:
+            message = await container.power.reboot_host()
+        except ProxmoxError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        return {"message": message}
+
+    @app.get("/node/metrics", response_model=NodeMetricsResponse)
+    async def get_node_metrics(
+        _: None = Depends(verify_bot_token),
+        __: AdminOut = Depends(require_admin),
+        container: AppState = Depends(get_container),
+    ) -> NodeMetricsResponse:
+        try:
+            return await container.metrics.get_node_metrics()
+        except ProxmoxError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    @app.get("/node/health", response_model=NodeHealthResponse)
+    async def get_node_health(
+        _: None = Depends(verify_bot_token),
+        __: AdminOut = Depends(require_admin),
+        container: AppState = Depends(get_container),
+    ) -> NodeHealthResponse:
+        try:
+            return await container.metrics.get_node_health()
+        except ProxmoxError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     return app
 

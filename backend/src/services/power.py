@@ -45,6 +45,10 @@ class PowerService:
         await self._client.shutdown_node()
         return "Команда выключения хоста отправлена"
 
+    async def reboot_host(self) -> str:
+        await self._client.reboot_node()
+        return "Команда перезагрузки хоста отправлена"
+
 
 class GuestNotFoundError(Exception):
     def __init__(self, kind: GuestKind, vmid: int) -> None:

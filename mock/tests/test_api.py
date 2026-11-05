@@ -107,3 +107,33 @@ async def test_shutdown_lxc_updates_status(client: AsyncClient) -> None:
     list_response = await client.get("/api2/json/nodes/pve/lxc")
     guest = next(item for item in list_response.json()["data"] if item["vmid"] == 110)
     assert guest["status"] == "stopped"
+
+
+@pytest.mark.asyncio
+async def test_list_storage(client: AsyncClient) -> None:
+    response = await client.get("/api2/json/nodes/pve/storage")
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert len(data) >= 1
+    assert "used" in data[0]
+
+
+@pytest.mark.asyncio
+async def test_rrddata_hour(client: AsyncClient) -> None:
+    response = await client.get("/api2/json/nodes/pve/rrddata", params={"timeframe": "hour"})
+    assert response.status_code == 200
+    points = response.json()["data"]
+    assert len(points) >= 2
+    assert "cpu" in points[0]
+    assert "sda_temp" in points[0]
+
+
+@pytest.mark.asyncio
+async def test_node_reboot_command(client: AsyncClient) -> None:
+    response = await client.post(
+        "/api2/json/nodes/pve/status",
+        json={"command": "reboot"},
+    )
+    assert response.status_code == 200
+    status = await client.get("/api2/json/nodes/pve/status")
+    assert status.json()["data"]["uptime"] == 120

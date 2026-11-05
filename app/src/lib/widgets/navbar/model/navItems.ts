@@ -8,5 +8,6 @@ export type NavItem = {
 export const navItems: NavItem[] = [
 	{ id: 'qemu', label: 'VM', href: '/guests/qemu' },
 	{ id: 'lxc', label: 'LXC', href: '/guests/lxc' },
-	{ id: 'monitoring', label: 'Monitoring', href: '/monitoring', disabled: true }
+	{ id: 'monitoring', label: 'Monitor', href: '/monitoring' },
+	{ id: 'host', label: 'Host', href: '/host' }
 ];

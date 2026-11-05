@@ -94,10 +94,12 @@ curl -s http://127.0.0.1:8006/api2/json/nodes/pve/qemu | jq
 |-------|------|----------|
 | GET | `/api2/json/nodes` | список нод `[{"node":"pve","status":"online"}]` |
 | GET | `/api2/json/nodes/pve/status` | CPU, RAM, disk, uptime, loadavg |
+| GET | `/api2/json/nodes/pve/storage` | storage pools (used/total/avail) |
+| GET | `/api2/json/nodes/pve/rrddata?timeframe=hour` | RRD points (`cpu`, `mem`, `loadavg`, `temp`, `*_temp` per disk) |
 | GET | `/api2/json/nodes/pve/qemu` | список VM |
 | GET | `/api2/json/nodes/pve/lxc` | список CT |
 | POST | `/api2/json/nodes/pve/{qemu\|lxc}/{vmid}/status/{action}` | `start`, `stop`, `shutdown`, `suspend`, `resume`, `reboot` |
-| POST | `/api2/json/nodes/pve/status` | JSON или form: `{"command":"shutdown"}` — uptime ноды → 0, стек demo не останавливается |
+| POST | `/api2/json/nodes/pve/status` | `{"command":"shutdown"}` — uptime → 0; `{"command":"reboot"}` — uptime → 120 (demo) |
 
 Имя ноды зафиксировано: **`pve`**. В env backend задай `PROXMOX_NODE=pve`.
 
