@@ -1,3 +1,5 @@
-# Metric entity (v2)
+# Metric entity
 
-Placeholder for monitoring: `MetricSeries`, `DataPoint`, Proxmox RRD mapping.
+Types and helpers for monitoring charts: `seriesToPath`, `formatBytes`, `formatPercent`, `formatTempC`.
+
+Shared DTOs live in `$lib/shared/api/types` (`NodeMetricsDto`, …).

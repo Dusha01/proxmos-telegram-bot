@@ -37,6 +37,14 @@ def create_app() -> FastAPI:
     async def list_lxc() -> JSONResponse:
         return proxmox_data(state.list_guests("lxc"))
 
+    @app.get(f"/api2/json/nodes/{NODE}/storage")
+    async def list_storage() -> JSONResponse:
+        return proxmox_data(state.list_storage())
+
+    @app.get(f"/api2/json/nodes/{NODE}/rrddata")
+    async def node_rrddata(timeframe: str = "hour") -> JSONResponse:
+        return proxmox_data(state.list_rrddata(timeframe))
+
     @app.post(f"/api2/json/nodes/{NODE}/{{kind}}/{{vmid}}/status/{{action}}")
     async def guest_action(kind: str, vmid: int, action: str) -> JSONResponse:
         if kind not in ("qemu", "lxc"):
@@ -60,11 +68,15 @@ def create_app() -> FastAPI:
             form = await request.form()
             body = dict(form)
         command = body.get("command")
-        if command != "shutdown":
-            raise HTTPException(status_code=400, detail="unsupported command")
-        state.record_node_shutdown()
-        logger.warning("mock: node shutdown command received (demo stack keeps running)")
-        return proxmox_data(None)
+        if command == "shutdown":
+            state.record_node_shutdown()
+            logger.warning("mock: node shutdown command received (demo stack keeps running)")
+            return proxmox_data(None)
+        if command == "reboot":
+            state.record_node_reboot()
+            logger.warning("mock: node reboot command received (demo stack keeps running)")
+            return proxmox_data(None)
+        raise HTTPException(status_code=400, detail="unsupported command")
 
     @app.post("/mock/reset")
     async def reset_state() -> dict[str, str]:

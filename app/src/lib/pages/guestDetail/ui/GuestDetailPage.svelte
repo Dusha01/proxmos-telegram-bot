@@ -14,6 +14,7 @@
 	import { ApiClientError } from '$lib/shared/api/client';
 	import { toastStore } from '$lib/shared/ui/toastStore.svelte';
 	import { getTelegramWebApp, hapticError, hapticSuccess } from '$lib/shared/lib/telegram/authHeader';
+	import GuestDetailSkeleton from '$lib/shared/ui/skeletons/GuestDetailSkeleton.svelte';
 
 	let { kind, vmid }: { kind: GuestKind; vmid: number } = $props();
 
@@ -23,18 +24,34 @@
 	let confirmOpen = $state(false);
 	let pendingAction = $state<PowerAction | null>(null);
 
-	async function load() {
+	async function loadGuest(forKind: GuestKind, forVmid: number) {
 		loading = true;
+		guest = null;
 		try {
-			guest = await fetchGuest(kind, vmid);
+			const data = await fetchGuest(forKind, forVmid);
+			if (forKind !== kind || forVmid !== vmid) {
+				return;
+			}
+			guest = data;
 		} catch (error) {
+			if (forKind !== kind || forVmid !== vmid) {
+				return;
+			}
 			const message = error instanceof ApiClientError ? error.message : 'Ошибка';
 			toastStore.push(message, 'error');
 			hapticError();
 		} finally {
-			loading = false;
+			if (forKind === kind && forVmid === vmid) {
+				loading = false;
+			}
 		}
 	}
+
+	$effect(() => {
+		const forKind = kind;
+		const forVmid = vmid;
+		void loadGuest(forKind, forVmid);
+	});
 
 	function requestAction(action: PowerAction) {
 		pendingAction = action;
@@ -67,10 +84,9 @@
 	async function refreshStatus() {
 		busy = true;
 		try {
-			guest = await fetchGuest(kind, vmid);
-			if (guest) {
-				toastStore.push(`Статус: ${mapStatusLabel(guest.status)}`, 'info');
-			}
+			const data = await fetchGuest(kind, vmid);
+			guest = data;
+			toastStore.push(`Статус: ${mapStatusLabel(data.status)}`, 'info');
 		} catch (error) {
 			const message = error instanceof ApiClientError ? error.message : 'Ошибка';
 			toastStore.push(message, 'error');
@@ -82,13 +98,17 @@
 	onMount(() => {
 		const webApp = getTelegramWebApp();
 		webApp?.BackButton?.show();
-		const back = () => goto(`/guests/${kind}`);
-		webApp?.BackButton?.onClick(back);
-		load();
 		return () => {
-			webApp?.BackButton?.offClick(back);
 			webApp?.BackButton?.hide();
 		};
+	});
+
+	$effect(() => {
+		const listKind = kind;
+		const webApp = getTelegramWebApp();
+		const back = () => goto(`/guests/${listKind}`);
+		webApp?.BackButton?.onClick(back);
+		return () => webApp?.BackButton?.offClick(back);
 	});
 </script>
 
@@ -98,7 +118,7 @@
 	showNav={false}
 >
 	{#if loading}
-		<p class="hint">Загрузка…</p>
+		<GuestDetailSkeleton />
 	{:else if guest}
 		<Card>
 			<div class="head">
@@ -127,11 +147,6 @@
 />
 
 <style>
-	.hint {
-		text-align: center;
-		color: var(--tg-theme-hint-color, #666);
-		padding: 2rem 0;
-	}
 	.head {
 		display: flex;
 		align-items: center;

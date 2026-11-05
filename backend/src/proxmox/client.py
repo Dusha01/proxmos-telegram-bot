@@ -118,3 +118,30 @@ class ProxmoxClient:
             f"/nodes/{node}/status",
             json_body={"command": "shutdown"},
         )
+
+    async def reboot_node(self) -> None:
+        node = await self.resolve_node()
+        await self._request(
+            "POST",
+            f"/nodes/{node}/status",
+            json_body={"command": "reboot"},
+        )
+
+    async def get_node_rrddata(
+        self,
+        *,
+        timeframe: str = "hour",
+        cf: str = "AVERAGE",
+    ) -> list[dict]:
+        node = await self.resolve_node()
+        data = await self._request(
+            "GET",
+            f"/nodes/{node}/rrddata",
+            params={"timeframe": timeframe, "cf": cf},
+        )
+        return data if isinstance(data, list) else []
+
+    async def list_node_storage(self) -> list[dict]:
+        node = await self.resolve_node()
+        data = await self._request("GET", f"/nodes/{node}/storage")
+        return data if isinstance(data, list) else []

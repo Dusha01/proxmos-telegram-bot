@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import AppShell from '$lib/widgets/appShell/ui/AppShell.svelte';
 	import GuestList from '$lib/widgets/guestList/ui/GuestList.svelte';
 	import { fetchGuestList } from '$lib/features/guestList/api/fetchGuestList';
 	import type { GuestDto } from '$lib/shared/api/types';
 	import { ApiClientError } from '$lib/shared/api/client';
 	import { toastStore } from '$lib/shared/ui/toastStore.svelte';
+	import GuestListSkeleton from '$lib/shared/ui/skeletons/GuestListSkeleton.svelte';
 
 	let { kind }: { kind: 'qemu' | 'lxc' } = $props();
 
@@ -14,25 +14,40 @@
 
 	const title = $derived(kind === 'qemu' ? 'Виртуальные машины' : 'Контейнеры LXC');
 
-	async function load() {
+	async function loadList(forKind: 'qemu' | 'lxc') {
 		loading = true;
 		try {
-			const data = await fetchGuestList(kind);
+			const data = await fetchGuestList(forKind);
+			if (forKind !== kind) {
+				return;
+			}
 			guests = data.items;
 		} catch (error) {
+			if (forKind !== kind) {
+				return;
+			}
 			const message = error instanceof ApiClientError ? error.message : 'Ошибка загрузки';
 			toastStore.push(message, 'error');
 		} finally {
-			loading = false;
+			if (forKind === kind) {
+				loading = false;
+			}
 		}
 	}
 
-	onMount(load);
+	$effect(() => {
+		const forKind = kind;
+		void loadList(forKind);
+	});
+
+	async function load() {
+		await loadList(kind);
+	}
 </script>
 
 <AppShell title={title} subtitle="Управление гостями">
 	{#if loading}
-		<p class="hint">Загрузка…</p>
+		<GuestListSkeleton {kind} count={kind === 'qemu' ? 4 : 3} />
 	{:else}
 		<GuestList {guests} {kind} />
 	{/if}
@@ -40,11 +55,6 @@
 </AppShell>
 
 <style>
-	.hint {
-		text-align: center;
-		color: var(--tg-theme-hint-color, #666);
-		padding: 2rem 0;
-	}
 	.refresh {
 		margin-top: 0.75rem;
 		width: 100%;

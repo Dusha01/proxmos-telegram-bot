@@ -57,8 +57,14 @@ Open http://localhost:5173 — uses dev auth (`DEV_MINI_APP_CHAT_ID` as chat).
 | GET `/api/guests?kind=qemu\|lxc` | Guest list |
 | GET `/api/guests/:kind/:vmid` | Guest card |
 | POST `/api/guests/:kind/:vmid/:action` | Power action + status poll |
+| GET `/api/node/metrics` | Node metrics (RRD hour + storage) |
+| GET `/api/node/health` | Health check |
+| POST `/api/node/shutdown` | Shutdown Proxmox host |
+| POST `/api/node/reboot` | Reboot Proxmox host |
 
-Power actions: `start`, `stop`, `shutdown`, `reboot`, `suspend`, `resume`.
+Bottom nav: **VM**, **LXC**, **Monitor** (`/monitoring`), **Host** (`/host`).
+
+Power actions (guests): `start`, `stop`, `shutdown`, `reboot`, `suspend`, `resume`.
 
 ## Docker prod
 
