@@ -32,6 +32,10 @@ type BackendMetrics = {
 	loadavg: number[];
 	cpu_percent: number | null;
 	memory_percent: number | null;
+	memory_used: number | null;
+	memory_total: number | null;
+	grafana_dashboard_url: string | null;
+	metrics_source: 'influx' | 'proxmox';
 };
 
 type BackendHealth = {
@@ -78,7 +82,11 @@ function mapMetrics(raw: BackendMetrics): NodeMetricsDto {
 			: null,
 		loadavg: raw.loadavg,
 		cpuPercent: raw.cpu_percent,
-		memoryPercent: raw.memory_percent
+		memoryPercent: raw.memory_percent,
+		memoryUsed: raw.memory_used,
+		memoryTotal: raw.memory_total,
+		grafanaDashboardUrl: raw.grafana_dashboard_url,
+		metricsSource: raw.metrics_source
 	};
 }
 

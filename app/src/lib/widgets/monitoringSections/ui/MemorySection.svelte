@@ -1,6 +1,6 @@
 <script lang="ts">
 	import MetricLineChart from '$lib/widgets/metricChart/ui/MetricLineChart.svelte';
-	import { formatPercent } from '$lib/entities/metric';
+	import { formatPercent, formatBytes } from '$lib/entities/metric';
 	import type { NodeMetricsDto } from '$lib/shared/api/types';
 
 	let { metrics }: { metrics: NodeMetricsDto } = $props();
@@ -8,7 +8,14 @@
 
 <section class="section" aria-labelledby="mem-heading">
 	<h2 id="mem-heading">Оперативная память</h2>
-	{#if metrics.memoryPercent != null}
+	{#if metrics.memoryUsed != null && metrics.memoryTotal != null}
+		<p class="snapshot">
+			RAM сейчас: {formatBytes(metrics.memoryUsed)} / {formatBytes(metrics.memoryTotal)}
+			{#if metrics.memoryPercent != null}
+				· {formatPercent(metrics.memoryPercent)}
+			{/if}
+		</p>
+	{:else if metrics.memoryPercent != null}
 		<p class="snapshot">RAM сейчас: {formatPercent(metrics.memoryPercent)}</p>
 	{/if}
 	{#if metrics.memorySeries}
