@@ -20,7 +20,38 @@ def guest_from_raw(raw: dict, kind: GuestKind) -> Guest:
     return Guest(vmid=vmid, name=name, kind=kind, status=status)
 
 
+def _as_int(value: object) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def normalize_node_status_raw(raw: dict) -> dict:
+    """Map Proxmox VE 9+ nested status fields to legacy flat keys used by the bot."""
+    normalized = dict(raw)
+    memory = raw.get("memory")
+    if isinstance(memory, dict):
+        if normalized.get("mem") is None:
+            normalized["mem"] = _as_int(memory.get("used"))
+        if normalized.get("maxmem") is None:
+            normalized["maxmem"] = _as_int(memory.get("total"))
+    rootfs = raw.get("rootfs")
+    if isinstance(rootfs, dict):
+        if normalized.get("disk") is None:
+            normalized["disk"] = _as_int(rootfs.get("used"))
+        if normalized.get("maxdisk") is None:
+            normalized["maxdisk"] = _as_int(rootfs.get("total"))
+    cpuinfo = raw.get("cpuinfo")
+    if isinstance(cpuinfo, dict) and normalized.get("maxcpu") is None:
+        normalized["maxcpu"] = _as_int(cpuinfo.get("cpus"))
+    return normalized
+
+
 def node_from_raw(raw: dict) -> NodeStatus:
+    raw = normalize_node_status_raw(raw)
     loadavg = raw.get("loadavg") or []
     if isinstance(loadavg, str):
         loadavg = [float(x) for x in loadavg.split() if x]

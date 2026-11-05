@@ -13,6 +13,7 @@ from proxmox.models import (
 )
 from services.guard import node_from_raw
 from services.rrd_mapping import (
+    latest_rrd_scalar,
     map_rrd_to_disk_temperature_series,
     map_rrd_to_load_series,
     map_rrd_to_memory_series,
@@ -52,6 +53,18 @@ def _root_disk_from_status(node: NodeStatus) -> RootDiskUsage | None:
     )
 
 
+def _root_disk_from_rrd(rows: list[dict]) -> RootDiskUsage | None:
+    used = latest_rrd_scalar(rows, "rootused")
+    total = latest_rrd_scalar(rows, "roottotal")
+    if used is None or total is None or total <= 0:
+        return None
+    return RootDiskUsage(
+        used=int(used),
+        total=int(total),
+        used_percent=round(used / total * 100.0, 1),
+    )
+
+
 class NodeMetricsService:
     def __init__(self, client: ProxmoxClient) -> None:
         self._client = client
@@ -77,10 +90,19 @@ class NodeMetricsService:
                 if vol is not None:
                     storages.append(vol)
 
-        cpu_percent = node.cpu * 100.0 if node.cpu is not None else None
+        cpu_percent = latest_rrd_scalar(rrd_rows, "cpu", scale=100.0)
+        if cpu_percent is None and node.cpu is not None:
+            cpu_percent = node.cpu * 100.0
         memory_percent: float | None = None
         if node.mem is not None and node.maxmem is not None and node.maxmem > 0:
             memory_percent = round(node.mem / node.maxmem * 100.0, 1)
+        if memory_percent is None:
+            mem_ratio = latest_rrd_scalar(rrd_rows, "memused")
+            mem_total = latest_rrd_scalar(rrd_rows, "memtotal")
+            if mem_ratio is not None and mem_total is not None and mem_total > 0:
+                memory_percent = round(mem_ratio / mem_total * 100.0, 1)
+
+        root_disk = _root_disk_from_status(node) or _root_disk_from_rrd(rrd_rows)
 
         return NodeMetricsResponse(
             node=node.node,
@@ -92,7 +114,7 @@ class NodeMetricsService:
             disk_temperature_series=disk_temperature_series,
             disk_temperature_available=disk_temperature_available,
             storages=storages,
-            root_disk=_root_disk_from_status(node),
+            root_disk=root_disk,
             loadavg=node.loadavg,
             cpu_percent=round(cpu_percent, 1) if cpu_percent is not None else None,
             memory_percent=memory_percent,
