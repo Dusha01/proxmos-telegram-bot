@@ -46,6 +46,11 @@
 		</div>
 	{/if}
 	<button type="button" class="refresh" onclick={load} disabled={loading}>Обновить</button>
+	{#if metrics?.grafanaDashboardUrl}
+		<a class="grafana" href={metrics.grafanaDashboardUrl} target="_blank" rel="noopener noreferrer">
+			Открыть в Grafana
+		</a>
+	{/if}
 </AppShell>
 
 <style>
@@ -65,5 +70,13 @@
 	}
 	.refresh:disabled {
 		opacity: 0.5;
+	}
+	.grafana {
+		display: block;
+		margin-top: 0.35rem;
+		text-align: center;
+		color: var(--tg-theme-link-color, #2481cc);
+		font-weight: 600;
+		text-decoration: none;
 	}
 </style>

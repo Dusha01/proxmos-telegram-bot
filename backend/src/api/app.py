@@ -11,6 +11,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from core.settings import Settings, get_settings
 from db.models.dto import AdminOut
 from db.repositories.repo import AdminRepository, create_motor_client
+from influx.errors import InfluxError
 from proxmox.client import ProxmoxClient, ProxmoxError
 from proxmox.models import (
     Guest,
@@ -69,7 +70,7 @@ async def lifespan(app: FastAPI):
     )
     guard = ActionGuard(settings.protected_guest_keys())
     inventory = InventoryService(proxmox)
-    metrics = NodeMetricsService(proxmox)
+    metrics = NodeMetricsService(proxmox, settings)
     power = PowerService(proxmox, inventory, guard)
     app.state.container = AppState(
         settings=settings,
@@ -227,6 +228,8 @@ def create_app() -> FastAPI:
     ) -> NodeMetricsResponse:
         try:
             return await container.metrics.get_node_metrics()
+        except InfluxError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
         except ProxmoxError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
 
