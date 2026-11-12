@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="280" viewBox="0 0 1200 280" role="img" aria-label="proxmos-telegram-bot">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#16161f"/>
+      <stop offset="1" stop-color="#0c0c12"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0.6" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a855f7" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#a855f7" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="line" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7c3aed"/>
+      <stop offset="1" stop-color="#e9d5ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="280" rx="28" fill="url(#bg)"/>
+  <rect width="1200" height="280" rx="28" fill="url(#glow)"/>
+  <g opacity="0.18" stroke="#a1a1aa" stroke-width="1">
+    <path d="M40 70h1120M40 140h1120M40 210h1120"/>
+    <path d="M200 36v208M400 36v208M600 36v208M800 36v208M1000 36v208"/>
+  </g>
+  <circle cx="78" cy="78" r="7" fill="#c084fc"/>
+  <text x="98" y="86" fill="#c4b5fd" font-family="ui-sans-serif, system-ui, Segoe UI, sans-serif" font-size="18" font-weight="600">homelab remote</text>
+  <text x="64" y="158" fill="#fafafa" font-family="ui-sans-serif, system-ui, Segoe UI, sans-serif" font-size="52" font-weight="700">proxmos-telegram-bot</text>
+  <g font-family="ui-sans-serif, system-ui, Segoe UI, sans-serif" font-size="16" font-weight="600">
+    <rect x="64" y="186" width="92" height="36" rx="18" fill="#241833"/>
+    <text x="110" y="210" text-anchor="middle" fill="#e9d5ff">bot</text>
+    <rect x="168" y="186" width="128" height="36" rx="18" fill="#241833"/>
+    <text x="232" y="210" text-anchor="middle" fill="#e9d5ff">mini app</text>
+    <rect x="308" y="186" width="150" height="36" rx="18" fill="#241833"/>
+    <text x="383" y="210" text-anchor="middle" fill="#e9d5ff">one backend</text>
+  </g>
+  <polyline fill="none" stroke="url(#line)" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" points="760,196 820,188 870,190 930,168 990,112 1048,78 1108,96 1148,124"/>
+  <circle cx="1048" cy="78" r="5" fill="#f5f3ff"/>
+  <text x="1048" y="62" text-anchor="middle" fill="#f5f3ff" font-family="ui-sans-serif, system-ui, Segoe UI, sans-serif" font-size="14" font-weight="700">2.0%</text>
+</svg>
