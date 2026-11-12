@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime
 
+from core.settings import Settings
+from influx.client import InfluxClient
 from proxmox.client import ProxmoxClient
 from proxmox.models import (
     NodeHealthResponse,
@@ -12,6 +14,7 @@ from proxmox.models import (
     StorageVolume,
 )
 from services.guard import node_from_raw
+from services.influx_metrics import InfluxMetricsService
 from services.rrd_mapping import (
     latest_rrd_scalar,
     map_rrd_to_disk_temperature_series,
@@ -66,10 +69,92 @@ def _root_disk_from_rrd(rows: list[dict]) -> RootDiskUsage | None:
 
 
 class NodeMetricsService:
-    def __init__(self, client: ProxmoxClient) -> None:
+    def __init__(self, client: ProxmoxClient, settings: Settings) -> None:
         self._client = client
+        self._settings = settings
+        self._influx: InfluxMetricsService | None = None
+        if settings.influx_configured:
+            influx_client = InfluxClient(
+                url=settings.influx_url,
+                org=settings.influx_org,
+                token=settings.influx_token,
+                timeout=settings.influx_query_timeout,
+            )
+            self._influx = InfluxMetricsService(influx_client, settings)
 
     async def get_node_metrics(self) -> NodeMetricsResponse:
+        use_influx = self._settings.metrics_source == "influx" and self._influx is not None
+        if use_influx:
+            return await self._get_from_influx()
+        return await self._get_from_proxmox()
+
+    async def _get_from_influx(self) -> NodeMetricsResponse:
+        assert self._influx is not None
+        status_raw, storage_raw = await asyncio.gather(
+            self._client.get_node_status(),
+            self._client.list_node_storage(),
+        )
+        node = node_from_raw(status_raw)
+        (
+            load_series,
+            memory_series,
+            temperature_series,
+            disk_temperature_series,
+            cpu_percent,
+            memory_snapshot,
+        ) = await asyncio.gather(
+            self._influx.fetch_load_series(),
+            self._influx.fetch_memory_series(),
+            self._influx.fetch_cpu_temperature_series(),
+            self._influx.fetch_disk_temperature_series(),
+            self._influx.fetch_cpu_percent(),
+            self._influx.fetch_memory_snapshot(),
+        )
+
+        storages: list[StorageVolume] = []
+        for item in storage_raw:
+            if isinstance(item, dict):
+                vol = _storage_from_raw(item)
+                if vol is not None:
+                    storages.append(vol)
+
+        memory_used = memory_snapshot.used
+        memory_total = memory_snapshot.total
+        memory_percent = memory_snapshot.used_percent
+        if (
+            memory_percent is None
+            and node.mem is not None
+            and node.maxmem is not None
+            and node.maxmem > 0
+        ):
+            memory_percent = round(node.mem / node.maxmem * 100.0, 1)
+            memory_used = memory_used or node.mem
+            memory_total = memory_total or node.maxmem
+
+        root_disk = _root_disk_from_status(node)
+        grafana_url = self._settings.grafana_node_dashboard_url.strip() or None
+
+        return NodeMetricsResponse(
+            node=node.node,
+            uptime=node.uptime,
+            load_series=load_series,
+            memory_series=memory_series,
+            temperature_series=temperature_series,
+            temperature_available=bool(temperature_series),
+            disk_temperature_series=disk_temperature_series,
+            disk_temperature_available=bool(disk_temperature_series),
+            storages=storages,
+            root_disk=root_disk,
+            loadavg=node.loadavg,
+            cpu_percent=cpu_percent,
+            memory_percent=memory_percent,
+            memory_used=memory_used,
+            memory_total=memory_total,
+            grafana_dashboard_url=grafana_url,
+            metrics_source="influx",
+        )
+
+    async def _get_from_proxmox(self) -> NodeMetricsResponse:
         status_raw, rrd_rows, storage_raw = await asyncio.gather(
             self._client.get_node_status(),
             self._client.get_node_rrddata(timeframe="hour"),
@@ -94,6 +179,8 @@ class NodeMetricsService:
         if cpu_percent is None and node.cpu is not None:
             cpu_percent = node.cpu * 100.0
         memory_percent: float | None = None
+        memory_used = node.mem
+        memory_total = node.maxmem
         if node.mem is not None and node.maxmem is not None and node.maxmem > 0:
             memory_percent = round(node.mem / node.maxmem * 100.0, 1)
         if memory_percent is None:
@@ -101,6 +188,8 @@ class NodeMetricsService:
             mem_total = latest_rrd_scalar(rrd_rows, "memtotal")
             if mem_ratio is not None and mem_total is not None and mem_total > 0:
                 memory_percent = round(mem_ratio / mem_total * 100.0, 1)
+                memory_used = int(mem_ratio)
+                memory_total = int(mem_total)
 
         root_disk = _root_disk_from_status(node) or _root_disk_from_rrd(rrd_rows)
 
@@ -118,6 +207,10 @@ class NodeMetricsService:
             loadavg=node.loadavg,
             cpu_percent=round(cpu_percent, 1) if cpu_percent is not None else None,
             memory_percent=memory_percent,
+            memory_used=memory_used,
+            memory_total=memory_total,
+            grafana_dashboard_url=None,
+            metrics_source="proxmox",
         )
 
     async def get_node_health(self) -> NodeHealthResponse:

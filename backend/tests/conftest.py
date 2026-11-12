@@ -18,6 +18,7 @@ def _test_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PROXMOX_NODE", "pve")
     monkeypatch.setenv("PROXMOX_VERIFY_SSL", "false")
     monkeypatch.setenv("PROTECTED_GUESTS", "lxc:100")
+    monkeypatch.setenv("METRICS_SOURCE", "proxmox")
     monkeypatch.delenv("ENV_FILE", raising=False)
     from core.settings import get_settings
 

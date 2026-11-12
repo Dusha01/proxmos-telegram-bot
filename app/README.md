@@ -1,77 +1,144 @@
-# Proxmox Mini App (Telegram WebApp)
+# Mini App 📱 — SvelteKit внутри Telegram
 
-SvelteKit 5 + FSD (`src/lib/*`) + BFF (`src/lib/server` + `src/routes/api`).
+English: [README.en.md](README.en.md)
 
-## Architecture
+Панель в WebApp: VM, LXC, графики ноды, питание хоста. UI в Proxmox не ходит и в FastAPI напрямую тоже. Браузер стучится в BFF этого же приложения, BFF проверяет `initData` и уже потом зовёт backend.
 
-- **UI:** `entities` / `features` / `widgets` / `pages` — see [FSD.md](./FSD.md)
-- **BFF:** validates `Authorization: tma <initData>`, then **backend `/access`** (те же пары `(user_id, chat_id)`, что и у бота)
-- **Dev browser:** `Authorization: dev` when `APP_ENV=dev` with `DEV_ADMIN_USER_ID` + `DEV_MINI_APP_CHAT_ID`
+Слева список виртуалок, справа мониторинг ноды. Обе картинки — мини-апп. Чат с кнопками — это [бот](../bot/README.md), другая дверь.
 
-## Trusted chats (with backend)
+<p>
+  <img src="../img/IMG_4484.png" alt="Mini App: список виртуальных машин" width="240">
+  <img src="../img/IMG_4485.png" alt="Mini App: графики нагрузки, load average и RAM" width="240">
+</p>
 
-| Channel | Env chat id |
-|---------|-------------|
-| Bot in ops group | `ADMIN_CHAT_ID` |
-| Mini App | `MINI_APP_CHAT_ID` |
+Прод на Proxmox, NPM, токен PVE: [корневой README](../README.md).
 
-Same `ADMIN_USER_ID` in backend; Mongo holds two `(user_id, chat_id)` rows.
+### Два слоя
 
-## Setup
+**UI** — Svelte 5 (runes) + Tailwind 4, раскладка близкая к FSD в `src/lib/`:
+
+| Слой | Путь | Что внутри |
+|------|------|------------|
+| `pages` | `src/lib/pages/` | экраны: гости, карточка, мониторинг, хост |
+| `widgets` | `src/lib/widgets/` | шапка, нижнее меню, графики, секции |
+| `features` | `src/lib/features/` | запросы: список, действие, метрики, health |
+| `entities` | `src/lib/entities/` | гость, сессия, подписи метрик |
+| `shared` | `src/lib/shared/` | кнопки, тосты, типы DTO |
+
+**BFF** — `src/routes/api/**` и `src/lib/server/`. На каждый запрос:
+
+1. Заголовок `Authorization`.
+2. В проде: `tma <initData>`. Подпись HMAC сверяется с `TELEGRAM_BOT_TOKEN`, `auth_date` не старше `INIT_DATA_MAX_AGE_SEC` (дефолт 86400).
+3. Из `initData` берутся user id и chat id.
+4. Дальше те же заголовки, что у бота: `X-Bot-Token`, `X-Telegram-User-Id`, `X-Telegram-Chat-Id` → `API_BASE_URL`.
+
+Backend пускает только пару из Mongo. Для Mini App это `(ADMIN_USER_ID, MINI_APP_CHAT_ID)`. Открыл приложение из ops-группы — chat id групповой, пара не находится, экран доступа закрыт. Это не «сломался HTTPS». Открывай из того чата, чей id прописан. Обычно личка, и тогда `MINI_APP_CHAT_ID` равен user id.
+
+В `APP_ENV=dev` браузер без Telegram шлёт `Authorization: dev`. BFF подставляет `DEV_ADMIN_USER_ID` и `DEV_MINI_APP_CHAT_ID`. В проде эта ветка выключена, даже если заголовок прислать руками.
+
+Часы. Проверка `auth_date` идёт на машине, где крутится `web`. LXC без NTP с уехавшими часами даёт `invalid init data` при живом токене. Включи `systemd-timesyncd` в госте.
+
+### Экраны
+
+Нижнее меню (`navItems`):
+
+| Подпись | Путь |
+|---------|------|
+| VM | `/guests/qemu` |
+| LXC | `/guests/lxc` |
+| Monitor | `/monitoring` |
+| Host | `/host` |
+
+Питание гостя: `start`, `stop`, `shutdown`, `reboot`, `suspend`, `resume`. BFF после команды сам ждёт статус (`src/lib/server/backend/waitGuestStatus.ts`), как бот.
+
+Хост: health-check, выключение и перезагрузка, каждое в два диалога. Если этот `web` живёт на выключаемой ноде, после подтверждения вкладка просто перестанет открываться. Включить сервер из Mini App нельзя. `PROTECTED_GUESTS` на backend не блокирует питание ноды, только stop/shutdown конкретных гостей — имеет смысл вписать туда VMID LXC, в котором крутится compose.
+
+Мониторинг рисует ряды, которые отдал `/node/metrics`: нагрузка, память, температура CPU, температура дисков, storage. Пустые графики при живом PVE чаще всего про Influx и `INFLUX_HOST_TAG`, это настраивается на backend, не здесь.
+
+### BFF-ручки
+
+| Ручка | Смысл |
+|-------|--------|
+| GET `/api/me` | проверка доступа |
+| GET `/api/guests?kind=qemu\|lxc` | список |
+| GET `/api/guests/:kind/:vmid` | карточка |
+| POST `/api/guests/:kind/:vmid/:action` | питание + опрос статуса |
+| GET `/api/node/metrics` | метрики |
+| GET `/api/node/health` | health |
+| POST `/api/node/shutdown` | выключение ноды |
+| POST `/api/node/reboot` | перезагрузка ноды |
+
+Ошибки backend прокидываются с тем же кодом. 502 с FastAPI на клиенте выглядит как `proxmox_error` (туда же попадает и мёртвый Influx).
+
+### Переменные
+
+Имена объявлены в `src/env.ts`. SvelteKit 3 отдаёт в серверный код только то, что там описано. Новую секретную переменную мало положить в `.env` — её надо добавить в этот файл, иначе рантайм её «не видит».
+
+Секреты читаются при старте процесса, не при `docker build`. Образ собирается без `.env.prod`. В compose они приезжают через `env_file`.
+
+| Переменная | Зачем |
+|------------|--------|
+| `APP_ENV` | `dev` включает `Authorization: dev` |
+| `TELEGRAM_BOT_TOKEN` | HMAC `initData`, тот же, что у бота |
+| `BOT_API_TOKEN` | секрет до FastAPI, тот же, что у backend |
+| `API_BASE_URL` | локально `http://127.0.0.1:8000`; compose перебивает на `http://api:8000` |
+| `INIT_DATA_MAX_AGE_SEC` | свежесть `auth_date` |
+| `DEV_ADMIN_USER_ID` | только dev |
+| `DEV_MINI_APP_CHAT_ID` | только dev, должен совпасть с парой в Mongo |
+
+Шаблон: [`app/.env.example`](.env.example). В проде те же ключи лежат в корневом `.env.prod`. `DEV_*` там не нужны.
+
+`MINI_APP_CHAT_ID` в `.env.prod` читает **backend** (и ты должен открывать приложение из этого чата). BFF сам этот id из env не сравнивает: он берёт chat из `initData` и отдаёт backend как есть.
+
+### Локально
+
+Подними backend (и mongo, и mock, если без PVE), затем:
 
 ```bash
+cd app
 cp .env.example .env
-# TELEGRAM_BOT_TOKEN, BOT_API_TOKEN, API_BASE_URL
-# DEV_ADMIN_USER_ID + DEV_MINI_APP_CHAT_ID for browser dev
-# Private vars must be listed in src/env.ts (SvelteKit 3)
 npm install
-```
-
-Run backend + mongo + mock, then:
-
-```bash
 npm run dev
 ```
 
-Open http://localhost:5173 — uses dev auth (`DEV_MINI_APP_CHAT_ID` as chat).
+<http://localhost:5173> ходит с dev-авторизацией. `DEV_MINI_APP_CHAT_ID` = chat id, который backend уже записал при старте.
 
-## Telegram / BotFather
+### Prod: LXC, порт, NPM, BotFather
 
-1. Deploy mini app over **HTTPS** (prod: `web` service on port 3000 behind TLS).
-2. BotFather: domain + `WEBAPP_URL` in bot env.
-3. Open Mini App from chat **`MINI_APP_CHAT_ID`** (e.g. private chat). Not from the bot ops group.
+Сервис `web` в `docker-compose.prod.yml`:
 
-## Scripts
+- образ `app/Docker/Dockerfile.prod`, Node 22, `adapter-node`, `node build`, порт 3000;
+- `HOST=0.0.0.0`, `PORT=3000`, `BODY_SIZE_LIMIT=Infinity` (чтобы адаптер не отрезал тело запроса);
+- публикация **на LAN-IP LXC**, в примере `192.168.1.33:3000:3000`.
 
-- `npm run dev` — Vite dev server + BFF routes
-- `npm run lint` / `npm run lint:fix` — ESLint (Svelte + TS)
-- `npm run build` / `npm run preview` — production Node adapter
-- `npm run check` — svelte-check
-- `npm test` — initData + auth unit tests
+Этот IP должен быть адресом контейнера, где запущен compose, и лучше статикой. DHCP сменил адрес — bind упадёт, поправь `ports` и подними заново. NPM ходит на `http://<этот-ip>:3000` по HTTP внутри LAN. Наружу отдаёт только NPM.
 
-## API routes (BFF)
+Telegram открывает WebApp исключительно по HTTPS с валидным сертификатом.
 
-| Route | Description |
-|-------|-------------|
-| GET `/api/me` | Access check |
-| GET `/api/guests?kind=qemu\|lxc` | Guest list |
-| GET `/api/guests/:kind/:vmid` | Guest card |
-| POST `/api/guests/:kind/:vmid/:action` | Power action + status poll |
-| GET `/api/node/metrics` | Node metrics (RRD hour + storage) |
-| GET `/api/node/health` | Health check |
-| POST `/api/node/shutdown` | Shutdown Proxmox host |
-| POST `/api/node/reboot` | Reboot Proxmox host |
+1. Отдельный хост в NPM, scheme `http`, forward на IP LXC, port `3000`, websockets включены, Let's Encrypt, force SSL.
+2. Приложение собрано с `paths.base` по умолчанию, то есть с корня сайта. `WEBAPP_URL` вида `https://pve.example.com/` — то, что нужно. Суффикс `/miniapp` из примера env сам по себе не обслуживается: клиентский роутер ждёт маршруты на `/guests/...`, а не на `/miniapp/guests/...`.
+3. В BotFather — домен. В env бота — тот же `WEBAPP_URL`. Бот на старте ставит menu button «Панель».
+4. Открыть из чата `MINI_APP_CHAT_ID`.
 
-Bottom nav: **VM**, **LXC**, **Monitor** (`/monitoring`), **Host** (`/host`).
-
-Power actions (guests): `start`, `stop`, `shutdown`, `reboot`, `suspend`, `resume`.
-
-## Docker prod
-
-Root `.env.prod`: `MINI_APP_CHAT_ID` for api + web (same value), plus tokens. **Do not** put secrets in the Docker build — `docker compose` passes `.env.prod` to the running `web` container only.
-
-In `docker-compose.prod.yml`, set `web` `ports` to your host/LXC LAN IP (e.g. `192.168.1.33:3000:3000`) so Nginx Proxy Manager can use `http://192.168.1.33:3000` as upstream.
+Пересобрать только панель:
 
 ```bash
 docker compose -f docker-compose.prod.yml up -d --build web
+```
+
+`api` должен уже быть в той же сети compose, иначе `API_BASE_URL=http://api:8000` не резолвится.
+
+### Скрипты
+
+| Команда | Зачем |
+|---------|--------|
+| `npm run dev` | Vite + BFF |
+| `npm run build` / `preview` | прод-сборка адаптера |
+| `npm run lint` / `lint:fix` | ESLint |
+| `npm run check` | svelte-check |
+| `npm test` | vitest (initData, доступ) |
+
+```bash
+cd app && npm install
+npm run lint && npm test && npm run check
 ```

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="96" viewBox="0 0 1200 96" role="img" aria-label="Power off the node and this remote dies with it">
+  <defs>
+    <clipPath id="card">
+      <rect width="1200" height="96" rx="20"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#card)">
+    <rect width="1200" height="96" fill="#1c1408"/>
+    <rect width="12" height="96" fill="#f5a524"/>
+    <text x="40" y="40" fill="#fbbf24" font-family="ui-sans-serif, system-ui, Segoe UI, sans-serif" font-size="15" font-weight="700">DO NOT SKIM</text>
+    <text x="40" y="70" fill="#fef3c7" font-family="ui-sans-serif, system-ui, Segoe UI, sans-serif" font-size="26" font-weight="700">Power off the node and this remote dies with it</text>
+  </g>
+</svg>

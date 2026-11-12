@@ -23,6 +23,7 @@ mock/.env.proxmox
 
 # Python venv (backend/, bot/, mock/)
 .venv/
+.ruff_cache/
 
 # cache
 .pytest_cache/

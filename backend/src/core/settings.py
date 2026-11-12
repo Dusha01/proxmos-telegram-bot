@@ -32,6 +32,20 @@ class Settings(BaseSettings):
     proxmox_verify_ssl: bool = False
     protected_guests: str = ""
 
+    metrics_source: Literal["influx", "proxmox"] = "influx"
+    influx_url: str = ""
+    influx_org: str = "homelab"
+    influx_token: str = ""
+    influx_host_tag: str = ""
+    influx_bucket_proxmox: str = "proxmox"
+    influx_bucket_hardware: str = "hardware"
+    influx_query_timeout: float = 15.0
+    grafana_node_dashboard_url: str = ""
+
+    @property
+    def influx_configured(self) -> bool:
+        return bool(self.influx_url.strip() and self.influx_token.strip())
+
     @field_validator("protected_guests", mode="before")
     @classmethod
     def _strip_protected(cls, value: object) -> str:

@@ -74,6 +74,10 @@ export type NodeMetricsDto = {
 	loadavg: number[];
 	cpuPercent: number | null;
 	memoryPercent: number | null;
+	memoryUsed: number | null;
+	memoryTotal: number | null;
+	grafanaDashboardUrl: string | null;
+	metricsSource: 'influx' | 'proxmox';
 };
 
 export type HostHealthDto = {

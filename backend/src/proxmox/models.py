@@ -83,6 +83,10 @@ class NodeMetricsResponse(BaseModel):
     loadavg: list[float] = Field(default_factory=list)
     cpu_percent: float | None = None
     memory_percent: float | None = None
+    memory_used: int | None = None
+    memory_total: int | None = None
+    grafana_dashboard_url: str | None = None
+    metrics_source: Literal["influx", "proxmox"] = "proxmox"
 
 
 class NodeHealthResponse(BaseModel):
